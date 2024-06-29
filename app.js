@@ -6,7 +6,7 @@ import morgan from "morgan";
 // rate limiter
 import { rateLimit } from 'express-rate-limit'
 import { connectDb } from "./helpers/dbConnect.js";
-import { distributeRewards, indexingUser } from "./helpers/helpers.js";
+import { distributeRewards, indexingUser, collectUsers } from "./helpers/helpers.js";
 // routes
 import distributeSpiceRoutes from "./routes/distributeSpice.route.js"
 
@@ -32,11 +32,13 @@ connectDb()
 // spice distribution routes
 app.use("/api", distributeSpiceRoutes)
 
-// setInterval(() => {
-//     indexingUser()
-// }, 150000)
+setInterval(() => {
+    indexingUser()
+}, 5000)
 
 // distributeRewards()
+
+// collectUsers()
  
 app.listen(PORT, () => console.log(`server is running on port ${PORT}`) )
 

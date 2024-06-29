@@ -3,6 +3,8 @@ import EventCoreAbi from "../contracts/EventAbi.json" assert { type: "json" };
 import { eventContract, goBobInstance } from "../constants/index.js";
 import axios from "axios";
 import User from "../models/user.model.js"
+import Page from "../models/pageData.model.js";
+import fs from "fs"
 
 /**
  * @dev get contract
@@ -14,14 +16,50 @@ const getContract = async() => {
     return eventCa;
 }
 
+
+export const collectUsers = async() => {
+
+    // const url = `https://explorer.gobob.xyz/api/v2/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from&block_number=3357482&index=3&items_count=250&transaction_index=1`
+    // const { data } = await axios.get(url)
+    // const { block_number, index, items_count, transaction_index } = data?.next_page_params
+
+    // console.log(data?.next_page_params)
+
+    // await fs.writeFile("page.json", JSON.stringify({ block_number, index, items_count, transaction_index }), (fileData => {
+    //     console.log(fileData)
+    // }))
+
+    // return {
+    //     blockNumber: block_number,
+    //     idx: index,
+    //     itemCount: items_count,
+    //     txIndex: transaction_index
+    // }
+}
+
 /**
  * @dev getting internal txs of EventCore to retrieved recently account creation
  * @returns onlyCall - returns only account creation txs
  */
 const getInternalTxs = async() => {
-    const url = `https://explorer.gobob.xyz/api/v2/addresses/${eventContract}/internal-transactions?filter=to=7C&=from&items_count=300`
+    let currentIdx = 0;
+    const pageData = await Page.find({})
+    const page = pageData[pageData.length-1]
+
+    // previous block=3357482 index=3, items=250, txIdx=1
+    const url = `https://explorer.gobob.xyz/api/v2/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from&block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}`
+
     const { data } = await axios.get(url)
     const onlyCall = data["items"].filter(item => item.type == "call")
+
+    const { block_number, index, items_count, transaction_index } = data?.next_page_params
+
+    if(block_number && index && items_count && transaction_index) {
+        const newPage = new Page({ block_number, index, items_count, transaction_index })
+        await newPage.save()
+    }
+
+    console.log(data)
 
     return onlyCall;
 }
