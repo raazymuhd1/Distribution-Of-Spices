@@ -1,10 +1,11 @@
 import { ethers } from "ethers";
 import EventCoreAbi from "../contracts/EventAbi.json" assert { type: "json" };
-import { eventContract, goBobInstance } from "../constants/index.js";
+import { eventContract, rampageV1, goBobInstance, explorerBob } from "../constants/index.js";
 import axios from "axios";
 import User from "../models/user.model.js"
 import Page from "../models/pageData.model.js";
-import fs from "fs"
+// import RampageUser from "../models/rampageUsers.model.js";
+// import RampagePage from "../models/rampagePage.model.js";
 
 /**
  * @dev get contract
@@ -17,29 +18,49 @@ const getContract = async() => {
 }
 
 
-export const collectUsers = async() => {
-
-    // const url = `https://explorer.gobob.xyz/api/v2/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from&block_number=3357482&index=3&items_count=250&transaction_index=1`
-    // const { data } = await axios.get(url)
-    // const { block_number, index, items_count, transaction_index } = data?.next_page_params
-
-    // console.log(data?.next_page_params)
-
-    // await fs.writeFile("page.json", JSON.stringify({ block_number, index, items_count, transaction_index }), (fileData => {
-    //     console.log(fileData)
-    // }))
-
-    // return {
-    //     blockNumber: block_number,
-    //     idx: index,
-    //     itemCount: items_count,
-    //     txIndex: transaction_index
-    // }
+export const getNewRegisteredUser = async() => {
+    const url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from`
+     const { data } = await axios.get(url)
+     const newUsers = data["items"].filter(item => item.type == "call")
+     
+     console.log(data?.next_page_params)
+     return newUsers
 }
 
+
+// GET ALL RAMPAGE USERS AND INDEX IT
+// export const indexingAllRampageUsers = async() => {
+//     const rampageData = await RampagePage.find({})
+//     const rampagePage = rampageData[rampageData.length-1]
+//     let rampageUsers = []
+
+//     console.log(rampageData.length)
+
+//     if(rampagePage && "block_number" in rampagePage) {
+//         const url = `${explorerBob}/addresses/${rampageV1}/transactions?filter=to%20%7C%20from&block_number=${rampagePage.block_number}&fee=${rampagePage.fee}&hash=${rampagePage.hash}&inserted_at=${rampagePage.inserted_at}&&index=${rampagePage.index}&items_count=${rampagePage.items_count}&value=${rampagePage.value}`
+    
+//         const { data } = await axios.get(url)
+//         const accountCreationTxs = data["items"].filter(item => item?.method == "createAccount")
+//         rampageUsers = accountCreationTxs.map(user => user?.from?.hash)
+    
+//         console.log(data)
+    
+//         // const { block_number, fee, hash, index, inserted_at, items_count, value } = data?.next_page_params
+    
+//         // if(block_number && fee && hash && index && inserted_at, items_count && value) {
+//         //     const nextPage = new RampagePage({ block_number, fee, hash, index, inserted_at, items_count, value })
+//         //     await nextPage.save()
+//         // }
+
+//     }
+
+//     return rampageUsers;
+// }
+
 /**
- * @dev getting internal txs of EventCore to retrieved recently account creation
+ * @dev getting internal txs of EventCore to retrieved recently account creation, this will be a legacy function in the future
  * @returns onlyCall - returns only account creation txs
+ * @notice legacy function to obtained an old users addresses
  */
 const getInternalTxs = async() => {
     let currentIdx = 0;
@@ -59,7 +80,7 @@ const getInternalTxs = async() => {
         await newPage.save()
     }
 
-    console.log(data)
+    console.log(data?.next_page_params)
 
     return onlyCall;
 }
@@ -85,8 +106,8 @@ export const userIndexed_ = async(user) => {
             return;
          }
     
-         const newUser = new User({ user }) 
-         await newUser.save()
+         const rampageUsers = new User({ user }) 
+         await rampageUsers.save()
         
     } catch (error) {
         console.log(error)
@@ -96,18 +117,23 @@ export const userIndexed_ = async(user) => {
 
 // 
 export const indexingUser = async() => {
-    const internalTxs = await getInternalTxs()
+    // const internalTxs = await getInternalTxs()
+    // const indexedRampageUsers = await indexingAllRampageUsers();
+    const newCreatedAcc = await getNewRegisteredUser()
     let user = ""
 
-    internalTxs.map(async(tx) => {
+    // console.log(indexedRampageUsers)
+    // indexedRampageUsers.map(user => {
+    //     userIndexed_(user)
+    // })
+
+    newCreatedAcc.map(async(tx) => {
         const url = `https://explorer.gobob.xyz/api/v2/transactions/${tx?.transaction_hash}`
         const { data } = await axios.get(url)
         
         user = data?.from?.hash
         userIndexed_(user)
     })
-    
-    return user
 
 }
 
@@ -116,9 +142,8 @@ const getUserDetails = async(user) => {
     const contract = await getContract()
     const userDetails = await contract.getUser(user)
     const userPoints = userDetails["points"].toString()
+    // if returns true, means user has been registred on rampage
     const isRampageRegistered = userDetails["accountInitialized"];
-
-    console.log(isRampageRegistered)
 
     return {
         points: userPoints,
@@ -131,25 +156,23 @@ const _getTotalPoints = async() => {
     const contract = await getContract()
     const totalPoints = await contract.getTotalPoints();
      
-    console.log(totalPoints.toString())
     return totalPoints
 }
 
 
-const getTotalUsers = async() => {
+export const _getTotalUsers = async() => {
      const contract = await getContract()
     const totalUsers = await contract.getTotalUsers();
-
-     console.log(totalUsers.toString())
+    console.log(totalUsers.toString())
      return totalUsers
 }
 
+// GET PROJECT TOTAL SPICES
 const getBotSpices = async() => {
     const { data } = await axios.get(`${goBobInstance}/partners`)
     const filteredResults = data?.partners.filter(partner => partner.name == "BOTS OF BITCOIN ")
     const totalSpices = filteredResults[0]?.total_points;
 
-     console.log(totalSpices)
      return totalSpices;
 }
 
@@ -162,45 +185,61 @@ const calculateRewards = async(userPoints) => {
 // "Z" = "User RP" * YY
 
 // and transfer spice equalling of 1% of Z's value
-    const adjustReward = (Number(totalSpices) / Number(totalPoints).toFixed(8)) * userPoints
+    const adjustReward = (Number(totalSpices) / Number((totalPoints * DECIMALS) / DECIMALS).toFixed(8)) * userPoints
      console.log(`rewards ${adjustReward}`)
     //  console.log(Number((totalPoints * DECIMALS)/ DECIMALS).toFixed(8))
 }
 
+// check is user has been registered on fusion or not
 const isFusionRegistered = async(userWallet) => {
     const { data } = await axios.get(`${goBobInstance}/user/${userWallet}`)
     const isUserExists = data?.ok;
     
     if(!isUserExists) {
+        await User.deleteOne({ user: userWallet })
+        console.log("deleted")
         throw new Error("wallet is not registered");
     }
 
-    console.log(isUserExists)
     return isUserExists;
 }
 
+// CHECK PAST DISTRIBUTIONS, TO PREVENT POINTS FROM BEING DOUBLE SPEND
+export const checkPastDistributions = async(user) => {
+    const { data } = await axios.get(`${goBobInstance}/past-distributions?page=1&limit=500`)
+
+    console.log(data)
+}
 
 /**
  * @dev check, calculate and distribute rewards to user that have RP
  */
 
 export const distributeRewards = async() => {
-    const registeredUsers = await User.find();
+    let limit = 100;
+    let skip = 100;
+    const registeredUsers = await User.find().limit(limit).skip(skip);
 
     registeredUsers.map(async(user) => {
-        const fusionRegistered = await isFusionRegistered(user.user);
-         const { points, rampageRegistered } = await getUserDetails(user.user);
-        const userRewards = await calculateRewards(points)
-        console.log(points)
+        skip += 100;
 
-         if(points && fusionRegistered && rampageRegistered) {
-            
-             //  spice distribution call
-             // const { data } = await axios.post(`${goBobInstance}/distribute-points`, {
-             //     toAddress: "",
-             //     points: "0"
-             // })
-         }
+        try {
+            // const fusionRegistered = await isFusionRegistered(user.user);
+             const { points, rampageRegistered } = await getUserDetails(user.user);
+            const userRewards = await calculateRewards(points)
+    
+            //  if(points && fusionRegistered && rampageRegistered) {
+                
+                 //  spice distribution call
+                 // const { data } = await axios.post(`${goBobInstance}/distribute-points`, {
+                 //     toAddress: "",
+                 //     points: "0"
+                 // })
+            //  }
+
+        } catch(err) {
+            console.log(err)
+        }
 
 
     })

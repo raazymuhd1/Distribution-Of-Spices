@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon app.js",
-    "pm2-mode": "pm2 start app.js -i max"
+    "cluster-mode": "pm2 start app.js -i max",
+    "kill-process": "pm2 delete all"
   },
   "keywords": [],
   "author": "",

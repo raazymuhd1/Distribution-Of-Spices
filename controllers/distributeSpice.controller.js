@@ -1,5 +1,4 @@
 import { StatusCodes } from "http-status-codes";
-import { walletStorage } from "../constants/index.js";
 import User from "../models/user.model.js"
 
 const userRegistered = async(req, res) => {
