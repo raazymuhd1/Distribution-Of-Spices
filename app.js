@@ -6,7 +6,7 @@ import morgan from "morgan";
 // rate limiter
 import { rateLimit } from 'express-rate-limit'
 import { connectDb } from "./helpers/dbConnect.js";
-import { distributeRewards, indexingUser, _getTotalUsers, checkPastDistributions } from "./helpers/helpers.js";
+import { distributeRewards, indexingUser, _getTotalUsers, removeLast24Distributions } from "./helpers/helpers.js";
 import { indexingFailedUser } from "./helpers/testFailedTxs.js";
 // routes
 import distributeSpiceRoutes from "./routes/distributeSpice.route.js"
@@ -30,24 +30,24 @@ app.use(morgan(`combined`))
 // db connection
 connectDb()
 
-// spice distribution routes
-// app.use("/api", distributeSpiceRoutes)
-
 // setInterval(() => {
 // 	indexingFailedUser()
 // }, 5000)
 
 setInterval(() => {
     indexingUser()
-}, 300000)
-
-_getTotalUsers()
+}, 1000000)
 
 // will run after each 1 hour
 // setInterval(() => {
-// 	distributeRewards()
+	distributeRewards()
 // }, 5000)
 // 3600000
+
+// REMOVING LAST 24 HOURS DISTRIBUTIONS
+// setInterval(() => {
+// 	removeLast24Distributions()
+// }, 3000)	
  
 app.listen(PORT, () => console.log(`server is running on port ${PORT}`) )
 
