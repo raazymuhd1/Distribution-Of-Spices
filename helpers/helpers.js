@@ -1,76 +1,87 @@
 import { ethers } from "ethers";
 import EventCoreAbi from "../contracts/EventAbi.json" assert { type: "json" };
-import { eventContract, rampageV1, goBobInstance, explorerBob } from "../constants/index.js";
+import { eventContract, goBobInstance, explorerBob } from "../constants/index.js";
 import axios from "axios";
 import User from "../models/user.model.js"
 import SpicesDistribution from "../models/spicesDistributions.model.js";
 import Page from "../models/pageData.model.js";
-import RampageNext from "../models/rampageNextPage.model.js"
-// import RampagePage from "../models/rampagePage.model.js";
+import { handleKeyEncryption } from "../keyEncryption.js"
 
 /**
  * @dev get contract
  * @returns eventCa - contract
  */
 const getContract = async() => {
-    const provider = new ethers.providers.JsonRpcProvider(process.env.BOB_RPC_MAINNET)
-    const eventCa = new ethers.Contract(eventContract, EventCoreAbi.abi, provider);
-    return eventCa;
+    try {
+        const encryptedRpc = handleKeyEncryption(String(process.env.BOB_RPC_MAINNET))
+        const provider = new ethers.providers.JsonRpcProvider(encryptedRpc)
+        const eventCa = new ethers.Contract(eventContract, EventCoreAbi.abi, provider);
+        return eventCa;
+    } catch(err) {
+        console.log(err)
+    }
 }
 
-
-const getNewRegisteredUser = async() => {
-    const url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from`
-     const { data } = await axios.get(url)
-     const newUsers = data["items"].filter(item => item.type == "call")
-     
-     console.log(data?.next_page_params)
-     return newUsers
+export const getRampageTotalUses = async() => {
+    try {
+        const users = await User.find({})
+        console.log(users.length)
+    } catch(err) {
+        console.log(err)
+    }
 }
-
 
 // GET ALL RAMPAGE USERS AND INDEX IT
-const indexingAllRampageUsers = async() => {
-    const rampageData = await RampageNext.find({})
-    const rampagePage = rampageData[rampageData.length-1]
-    let rampageUsers = []
+// const indexingAllRampageUsers = async() => {
+//     const rampageData = await RampageNext.find({})
+//     const rampagePage = rampageData[rampageData.length-1]
+//     let rampageUsers = []
 
-    console.log(rampageData.length)
+//     console.log(rampageData.length)
 
-    // 
-    // if(rampagePage && "block_number" in rampagePage) {
-        const url = `https://explorer.gobob.xyz/api/v2/addresses/${rampageV1}/internal-transactions?filter=to%20%7C%20from&block_number=2943155&index=2&items_count=5050&transaction_index=1`
+//     // 
+//     // if(rampagePage && "block_number" in rampagePage) {
+//         const url = `https://explorer.gobob.xyz/api/v2/addresses/${rampageV1}/internal-transactions?filter=to%20%7C%20from&block_number=2943155&index=2&items_count=5050&transaction_index=1`
     
-        const { data } = await axios.get(url)
-        rampageUsers = data["items"].filter(item => item?.type == "call")
+//         const { data } = await axios.get(url)
+//         rampageUsers = data["items"].filter(item => item?.type == "call")
     
-        console.log(data)
+//         console.log(data)
     
-        // const { block_number, index, items_count, transaction_index } = data?.next_page_params
+//         // const { block_number, index, items_count, transaction_index } = data?.next_page_params
     
-        // if(block_number && index && items_count && transaction_index) {
-        //     const nextPage = new RampageNext({ block_number, index, items_count, transaction_index })
-        //     await nextPage.save()
-        // }
+//         // if(block_number && index && items_count && transaction_index) {
+//         //     const nextPage = new RampageNext({ block_number, index, items_count, transaction_index })
+//         //     await nextPage.save()
+//         // }
 
-    // }
+//     // }
 
-    return rampageUsers;
-}
+//     return rampageUsers;
+// }
+
+
+const pages = [
+    {
+        block_number: 3232126,
+        index: 1,
+        items_count: 950,
+        transaction_index: 1,
+    }
+]
 
 /**
  * @dev getting internal txs of EventCore to retrieved recently account creation
  * @returns onlyCall - returns only a success account creation txs
  */
 const getInternalTxs = async() => {
-    let currentIdx = 0;
-    const pageData = await Page.find({})
-    const page = pageData[pageData.length-1]
-
-    // &block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}
-    const url = `https://explorer.gobob.xyz/api/v2/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from`
-
     try {
+        const pageData = await Page.find({})
+        const page = pageData[pageData.length-1]
+
+        // &block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}
+        const url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from&block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}`
+
         const { data } = await axios.get(url)
         const onlyCall = data["items"].filter(item => item.type == "call" && item?.success == true)
 
@@ -79,7 +90,6 @@ const getInternalTxs = async() => {
         const { block_number, index, items_count, transaction_index } = data?.next_page_params
 
         if(block_number && index && items_count && transaction_index) {
-            currentIdx++;
             const newPage = new Page({ block_number, index, items_count, transaction_index })
             await newPage.save()
         }
@@ -99,19 +109,17 @@ const getInternalTxs = async() => {
  * @param {*} user 
  */
 export const userIndexed_ = async(user) => {
-    const isUserAlreadyExists = await User.findOne({ user })
-
-    console.log(user)
     try {
+        const isUserAlreadyExists = await User.findOne({ user })
         //  check if the address is valid
          if(user == "") {
-            throw new Error("failed txs user address cannot be zero")
+            throw new Error("txs user address cannot be zero")
             return;
          }
     
         //  check whether the wallet already exist or not in the wallet storage
          if(isUserAlreadyExists) {
-            throw new Error("failed txs user has been indexed")
+            throw new Error("txs user has been indexed")
             return;
          }
     
@@ -126,21 +134,26 @@ export const userIndexed_ = async(user) => {
 
 // 
 export const indexingUser = async() => {
-    const internalTxs = await getInternalTxs()
-    let user = ""
+    try {
+        const internalTxs = await getInternalTxs()
+        let user = ""
+    
+        internalTxs.map(async(tx) => {
+            const url = `${explorerBob}/transactions/${tx?.transaction_hash}`
+            const { data } = await axios.get(url)
+            
+            if(data?.method == "createAccount" || data?.method == "dailyLogin" && data?.status == "ok") {
+                user = data?.from?.hash
+                userIndexed_(user)
+                return;
+            }
+    
+            console.log("not account creation tx")
+        })
 
-    internalTxs.map(async(tx) => {
-        const url = `https://explorer.gobob.xyz/api/v2/transactions/${tx?.transaction_hash}`
-        const { data } = await axios.get(url)
-        
-        if(data?.method == "createAccount" || data?.method == "dailyLogin" && data?.status == "ok") {
-            user = data?.from?.hash
-            userIndexed_(user)
-            return;
-        }
-
-        console.log("not account creation tx")
-    })
+    } catch(err) {
+        console.log(err)
+    }
 
 }
 
@@ -204,23 +217,26 @@ const isFusionRegistered = async(userWallet) => {
 
 // THIS FUNCTION WILL BE EXECUTED EACH 24 hours, TO REMOVE ALL THE LAST 24 DISTRIBUTIONS DATA.
 export const removeLast24Distributions = async() => {
-    const last24DistributionsRemoved = await SpicesDistribution.deleteMany({ amountOfReward: { $gte: 0 } });
-    console.log(last24DistributionsRemoved)
+    try {
+        await SpicesDistribution.deleteMany({ amountOfReward: { $gte: 0 } });
+    } catch(err) {
+        console.log(last24DistributionsRemoved)
+    }
 }
 
-// const distributionsData = [
-//     { user: "0x1FA4D89f1d044dCa763610F30E51AAda92C6c38c", amountOfReward: 100 },
-//     { user: "0xea4Ee82611Fdaf79bf9FA11cC62Bd59597FcfD5b", amountOfReward: 100 },
-//     { user: "0x187a854D82A838156D45763BCb4941d9612c842D", amountOfReward: 100 },
-//     { user: "0xD18F8F016d85567cD088b40Bd9E3b3839b95DDB2", amountOfReward: 100 },
-// ]
+const distributionsData = [
+    { user: "0x1FA4D89f1d044dCa763610F30E51AAda92C6c38c", amountOfReward: 100 },
+    { user: "0xea4Ee82611Fdaf79bf9FA11cC62Bd59597FcfD5b", amountOfReward: 100 },
+    { user: "0x187a854D82A838156D45763BCb4941d9612c842D", amountOfReward: 100 },
+    { user: "0xD18F8F016d85567cD088b40Bd9E3b3839b95DDB2", amountOfReward: 100 },
+]
 
-// export async function testAddDistributions() {
-//     for(const data of distributionsData) {
-//         const distributions = new SpicesDistribution({ user: data.user, amountOfReward: data.amountOfReward })
-//         await distributions.save()
-//     }
-// }
+export async function testAddDistributions() {
+    for(const data of distributionsData) {
+        const distributions = new SpicesDistribution({ user: data.user, amountOfReward: data.amountOfReward })
+        await distributions.save()
+    }
+}
 
 // CHECK PAST DISTRIBUTIONS, TO PREVENT POINTS FROM BEING DOUBLE SPEND
 /**
@@ -231,28 +247,37 @@ export const removeLast24Distributions = async() => {
  */
 export const checkPastDistributions = async(user) => {
     // const { data } = await axios.get(`${goBobInstance}/past-distributions?page=1&limit=500`)
-    const distributes = await SpicesDistribution.find({});
-    const distributedData = distributes.map(distri => distri.user)
-    
-    if(distributedData.includes(user)) return true;
-    return false;
+    try {
+        const distributes = await SpicesDistribution.find({});
+        const distributedData = distributes.map(distri => distri.user)
+        
+        if(distributedData.includes(user)) return true;
+        return false;
+    } catch(err) {
+        console.log(err)
+    }
    
 }
 
 const calculateRewards = async(userPoints) => {
-     const totalSpices = await getBotSpices();
-     const totalPoints = await _getTotalPoints();
-     const rewardPercentage = 1;
-     const testAmount = Number(totalSpices) / 1000 // => 14838.760384185
-
-    // const adjustReward = (Number(totalSpices) / Number(totalPoints)) * userPoints;
-    const adjustReward = (testAmount / Number(totalPoints)) * userPoints;
-    const totalRewards = (adjustReward * rewardPercentage) / 100
-    const formattedReward = totalRewards.toFixed(8);
-
-     console.log(`rewards ${formattedReward}`)
-    //  return formattedReward;
-    console.log(testAmount)
+     
+     try {
+         const totalSpices = await getBotSpices();
+         const totalPoints = await _getTotalPoints();
+         const rewardPercentage = 1;
+         const testAmount = Number(totalSpices) / 1000 // => 14838.760384185
+    
+        // const adjustReward = (Number(totalSpices) / Number(totalPoints)) * userPoints;
+        const adjustReward = (testAmount / Number(totalPoints)) * userPoints;
+        const totalRewards = (adjustReward * rewardPercentage) / 100
+        const formattedReward = totalRewards.toFixed(8);
+    
+         console.log(`rewards ${formattedReward}`)
+        //  return formattedReward;
+        console.log(testAmount)
+     } catch(err) {
+        console.log(err)
+     }
 }
 
 /**
@@ -266,41 +291,38 @@ export const distributeRewards = async() => {
     const usersPerRound = totalusers / 24;
     let limit = usersPerRound;
     // if users has been rewarded, then skip to the next 339 users ( skip )
-    // q - how to implement checking if user already received the rewards then skip to next batches of users??
     const randomSkip = Math.floor(Math.random() * usersPerRound)
     const registeredUsers = await User.find({}).skip(randomSkip).limit(limit)
 
-    console.log(totalusers)
+    for(const user of registeredUsers) {
+         const distributed = await checkPastDistributions(user.user)
 
-    // for(const user of registeredUsers) {
-    //      const distributed = await checkPastDistributions(user.user)
+         if (distributed) {
+            console.log(`User ${user.user} already received rewards, skipping...`);
+            continue; // Skip to the next user
+        }
 
-    //      if (distributed) {
-    //         console.log(`User ${user.user} already received rewards, skipping...`);
-    //         continue; // Skip to the next user
-    //     }
-
-    //      try {
-    //       // const fusionRegistered = await isFusionRegistered(user.user);
-    //               const { points, rampageRegistered } = await getUserDetails(user.user);
-    //              const userRewards = await calculateRewards(points)
+         try {
+                 const fusionRegistered = await isFusionRegistered(user.user);
+                 const { points, rampageRegistered } = await getUserDetails(user.user);
+                 const userRewards = await calculateRewards(points)
      
-    //              //  if(points && fusionRegistered && rampageRegistered) {
+                  if(points > 0 && fusionRegistered && rampageRegistered) {
+                      const params = { toAddress: user.user, points: userRewards}
+                      const headers = { 'X-API-KEY': "" }
                      
-    //                   //  spice distribution call
-    //                   // const { data } = await axios.post(`${goBobInstance}/distribute-points`, {
-    //                   //     toAddress: user.user,
-    //                   //     points: userRewards
-    //                   // })
-    //              //  }
+                    //    spice distribution call
+                    //   const { data } = await axios.post(`${goBobInstance}/distribute-points`, params, { headers })
 
-    //             //  saved the new distributions
-    //             //  const newDistribution = new SpicesDistribution({ user: user.user, points: userRewards });
-    //             // await newDistribution.save();
+                    //  saved the new distributions
+                    //  const newDistribution = new SpicesDistribution({ user: user.user, points: userRewards });
+                    // await newDistribution.save();
+                  }
+
      
-    //          } catch(err) {
-    //              console.log(err)
-    //          }
+             } catch(err) {
+                 console.log(err)
+             }
 
-    // }
+    }
 }
