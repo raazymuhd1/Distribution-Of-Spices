@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 import EventCoreAbi from "../contracts/EventAbi.json" assert { type: "json" };
 import { eventContract, goBobInstance, explorerBob } from "../constants/index.js";
 import axios from "axios";
+import fetch from "node-fetch"
 import User from "../models/user.model.js"
 import SpicesDistribution from "../models/spicesDistributions.model.js";
 import Page from "../models/pageData.model.js";
@@ -80,7 +81,7 @@ const getInternalTxs = async() => {
         const page = pageData[pageData.length-1]
 
         // &block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}
-        const url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from&block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}`
+        const url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from`
 
         const { data } = await axios.get(url)
         const onlyCall = data["items"].filter(item => item.type == "call" && item?.success == true)
@@ -89,10 +90,10 @@ const getInternalTxs = async() => {
 
         const { block_number, index, items_count, transaction_index } = data?.next_page_params
 
-        if(block_number && index && items_count && transaction_index) {
-            const newPage = new Page({ block_number, index, items_count, transaction_index })
-            await newPage.save()
-        }
+        // if(block_number && index && items_count && transaction_index) {
+        //     const newPage = new Page({ block_number, index, items_count, transaction_index })
+        //     await newPage.save()
+        // }
 
         // console.log(data?.next_page_params)
 
@@ -119,8 +120,8 @@ export const userIndexed_ = async(user) => {
     
         //  check whether the wallet already exist or not in the wallet storage
          if(isUserAlreadyExists) {
-            throw new Error("txs user has been indexed")
-            return;
+            console.log("txs user has been indexed")
+            return "txs user has been indexed";
          }
     
          const rampageUsers = new User({ user }) 
@@ -183,8 +184,7 @@ const _getTotalPoints = async() => {
 export const _getTotalUsers = async() => {
      const contract = await getContract()
     const totalUsers = await contract.getTotalUsers();
-    console.log(totalUsers.toString())
-     return totalUsers
+    return totalUsers
 }
 
 // GET PROJECT TOTAL SPICES
@@ -205,7 +205,7 @@ const isFusionRegistered = async(userWallet) => {
         if(!isUserExists) {
             await User.deleteOne({ user: userWallet })
             console.log("deleted")
-            throw new Error("wallet is not registered");
+            return false;
         }
     
         return isUserExists;
@@ -247,10 +247,11 @@ export async function testAddDistributions() {
  */
 export const checkPastDistributions = async(user) => {
     // const { data } = await axios.get(`${goBobInstance}/past-distributions?page=1&limit=500`)
+
     try {
         const distributes = await SpicesDistribution.find({});
         const distributedData = distributes.map(distri => distri.user)
-        
+
         if(distributedData.includes(user)) return true;
         return false;
     } catch(err) {
@@ -272,9 +273,7 @@ const calculateRewards = async(userPoints) => {
         const totalRewards = (adjustReward * rewardPercentage) / 100
         const formattedReward = totalRewards.toFixed(8);
     
-         console.log(`rewards ${formattedReward}`)
         //  return formattedReward;
-        console.log(testAmount)
      } catch(err) {
         console.log(err)
      }
@@ -286,43 +285,63 @@ const calculateRewards = async(userPoints) => {
 
 
 export const distributeRewards = async() => {
-    let testUser = 4;
     const totalusers = await _getTotalUsers();
-    const usersPerRound = totalusers / 24;
+    const usersPerRound = Math.ceil(totalusers / 24);
     let limit = usersPerRound;
+    let distributed = false;
     // if users has been rewarded, then skip to the next 339 users ( skip )
     const randomSkip = Math.floor(Math.random() * usersPerRound)
-    const registeredUsers = await User.find({}).skip(randomSkip).limit(limit)
+    // another alternative would be getting all eligible users and checking whether it has been received rewards or not and limit only 339 users in each round
+    // const registeredUsers = await User.find({}).skip(randomSkip).limit(limit)
+    const registeredUsers = await User.find({}) // getting all users
+    let totalRewardedPerRound = []
+
 
     for(const user of registeredUsers) {
-         const distributed = await checkPastDistributions(user.user)
-
-         if (distributed) {
-            console.log(`User ${user.user} already received rewards, skipping...`);
-            continue; // Skip to the next user
-        }
-
          try {
-                 const fusionRegistered = await isFusionRegistered(user.user);
-                 const { points, rampageRegistered } = await getUserDetails(user.user);
-                 const userRewards = await calculateRewards(points)
-     
-                  if(points > 0 && fusionRegistered && rampageRegistered) {
-                      const params = { toAddress: user.user, points: userRewards}
-                      const headers = { 'X-API-KEY': "" }
-                     
-                    //    spice distribution call
-                    //   const { data } = await axios.post(`${goBobInstance}/distribute-points`, params, { headers })
+                distributed = await checkPastDistributions(user.user)
+                const fusionRegistered = await isFusionRegistered(user.user);
+                const { points, rampageRegistered } = await getUserDetails(user.user);
+                const userRewards = await calculateRewards(points)
 
-                    //  saved the new distributions
-                    //  const newDistribution = new SpicesDistribution({ user: user.user, points: userRewards });
-                    // await newDistribution.save();
+                 //  if totalRewarded has been == usersPerRound, then stop.
+                if(totalRewardedPerRound.length >= 5) {
+                    console.log("total reward receivers per round has been reached", totalRewardedPerRound.length) 
+                    return;
+                }
+
+                if (distributed) {
+                    console.log(`User ${user.user} already received rewards, skipping...`);
+                    continue; // Skip to the next user in the list (continue to the next iterations)
+                }
+     
+                if(points > 0 && fusionRegistered && rampageRegistered) {
+                      const data = { transfers: [ 
+                        { toAddress: `${user.user}`, points: userRewards } 
+                        ] }
+                       const headers = { 'x-api-key': "", 'Content-Type': 'application/json' }
+                     
+                    //   do a check here, if totalRewardedPerRound has been reached (usersPerRound), then return
+                    //    spice distribution call
+                      const res = await fetch(`${goBobInstance}/distribute-points`, {
+                         method: "POST",
+                         body: JSON.stringify(data),  
+                         headers 
+                        })
+
+                       totalRewardedPerRound.push(user.user)
+
+                    // if(data) {
+                        //  saved the new distributions
+                        //  const newDistribution = new SpicesDistribution({ user: user.user, points: userRewards });
+                        // await newDistribution.save();
+                    // }
                   }
 
-     
+                  console.log(totalRewardedPerRound.length)
              } catch(err) {
                  console.log(err)
              }
-
     }
+
 }

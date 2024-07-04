@@ -11,7 +11,6 @@ export const handleKeyEncryption = (rpcUrl) => {
     const decipher = crypto.createDecipher(algorithm, password)
     const decrypted = decipher.update(encrypted, "hex", "utf8") + decipher.final("utf8")
     
-    console.log(encrypted)
     return decrypted
 }
 

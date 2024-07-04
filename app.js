@@ -6,7 +6,7 @@ import morgan from "morgan";
 // rate limiter
 import { rateLimit } from 'express-rate-limit'
 import { connectDb } from "./helpers/dbConnect.js";
-import { distributeRewards, indexingUser, _getTotalUsers, removeLast24Distributions, testAddDistributions } from "./helpers/helpers.js";
+import { distributeRewards, indexingUser, removeLast24Distributions, testAddDistributions } from "./helpers/helpers.js";
 import { indexingRampage, getInternalRampageUsers } from "./helpers/testTxs.js"
 // routes
 import distributeSpiceRoutes from "./routes/distributeSpice.route.js"
@@ -35,12 +35,12 @@ connectDb()
 
 setInterval(() => {
     indexingUser()
-}, 5000)
+}, 1500000)
 
 // will run after each 1 hour
-// setInterval(() => {
-	// distributeRewards()
-// }, 5000)
+setInterval(() => {
+	distributeRewards()
+}, 2550000)
 // 3600000
 
 // REMOVING LAST 6 HOURS DISTRIBUTIONS

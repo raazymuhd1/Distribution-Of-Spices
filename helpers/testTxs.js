@@ -1,4 +1,3 @@
-import FailedTx from "../models/failedTxs.model.js"
 import { eventContract, explorerBob, rampageV1 } from "../constants/index.js";
 import RampagePage from "../models/rampagePage.model.js"
 import RampageUser from "../models/rampageUsers.model.js"
