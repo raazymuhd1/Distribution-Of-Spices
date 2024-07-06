@@ -34,9 +34,9 @@ setInterval(() => {
 }, 5000000)
 
 // will run after each 1 hour
-setInterval(() => {
-	distributeRewards()
-}, 5000)
+// setInterval(() => {
+// 	distributeRewards()
+// }, 5000)
 
 // REMOVING LAST 6 HOURS DISTRIBUTIONS
 setInterval(() => {

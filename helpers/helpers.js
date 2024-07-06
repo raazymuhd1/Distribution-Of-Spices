@@ -251,12 +251,12 @@ export const distributeRewards = async() => {
     let distributed = false;
     // if users has been rewarded, then skip to the next 339 users ( skip )
     // const randomSkip = Math.ceil(Math.random() * totalUsers);
-    const skipping = await Skip.find({})
-    const skipTo = skipping.length > 0 ? skipping[skipping-1].skipValue : skip;
+    const skipItems = await Skip.find({})
+    const skipTo = skipItems[skipItems.length-1].skipValue ?? skip;
     const registeredUsers = await User.find({}).skip(skipTo).limit(limit)
     let totalRewardedPerRound = []
 
-    console.log('skipTo', skipTo)
+    console.log('rampageUsers', skipTo)
 
     for(const user of registeredUsers) {
 
@@ -272,7 +272,7 @@ export const distributeRewards = async() => {
                     console.log("total reward receivers per round has been reached", totalRewardedPerRound.length) 
                     totalRewardedPerRound = [];
 
-                    const skipData = new Skip({ skip })
+                    const skipData = new Skip({ skipValue: skip })
                     await skipData.save();
                     break;
                 }
