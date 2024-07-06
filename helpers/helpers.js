@@ -2,10 +2,12 @@ import { ethers } from "ethers";
 import EventCoreAbi from "../contracts/EventAbi.json" assert { type: "json" };
 import { eventContract, goBobInstance, explorerBob } from "../constants/index.js";
 import axios from "axios";
+import fs from "fs"
 import fetch from "node-fetch"
 import User from "../models/user.model.js"
 import SpicesDistribution from "../models/spicesDistributions.model.js";
 import Page from "../models/pageData.model.js";
+import Skip from "../models/skip.model.js"
 
 /**
  * @dev get contract
@@ -21,7 +23,7 @@ const getContract = async() => {
     }
 }
 
-export const getRampageTotalUses = async() => {
+export const getTotalRampageMembers = async() => {
     try {
         const users = await User.find({})
         console.log(users.length)
@@ -30,44 +32,6 @@ export const getRampageTotalUses = async() => {
     }
 }
 
-// GET ALL RAMPAGE USERS AND INDEX IT
-// const indexingAllRampageUsers = async() => {
-//     const rampageData = await RampageNext.find({})
-//     const rampagePage = rampageData[rampageData.length-1]
-//     let rampageUsers = []
-
-//     console.log(rampageData.length)
-
-//     // 
-//     // if(rampagePage && "block_number" in rampagePage) {
-//         const url = `https://explorer.gobob.xyz/api/v2/addresses/${rampageV1}/internal-transactions?filter=to%20%7C%20from&block_number=2943155&index=2&items_count=5050&transaction_index=1`
-    
-//         const { data } = await axios.get(url)
-//         rampageUsers = data["items"].filter(item => item?.type == "call")
-    
-//         console.log(data)
-    
-//         // const { block_number, index, items_count, transaction_index } = data?.next_page_params
-    
-//         // if(block_number && index && items_count && transaction_index) {
-//         //     const nextPage = new RampageNext({ block_number, index, items_count, transaction_index })
-//         //     await nextPage.save()
-//         // }
-
-//     // }
-
-//     return rampageUsers;
-// }
-
-
-const pages = [
-    {
-        block_number: 3232126,
-        index: 1,
-        items_count: 950,
-        transaction_index: 1,
-    }
-]
 
 /**
  * @dev getting internal txs of EventCore to retrieved recently account creation
@@ -247,12 +211,7 @@ export async function testAddDistributions() {
  * - after 24 hours, Clears out all the distributions data for yesterday
  */
 export const checkPastDistributions = async(user) => {
-    // const { data } = await axios.get(`${goBobInstance}/past-distributions?page=1&limit=500`)
-
     try {
-        // const distributes = await SpicesDistribution.find({});
-        // const distributedData = distributes.map(distri => distri.user)
-        // if(distributedData.includes(user)) return true;
         const receiverExists = await SpicesDistribution.find({user});
         if(receiverExists.includes(user)) return true;
         return false;
@@ -284,8 +243,6 @@ const calculateRewards = async(userPoints) => {
 /**
  * @dev check, calculate and distribute rewards to user that have RP
  */
-
-
 export const distributeRewards = async() => {
     const totalUsers = await _getTotalUsers();
     const usersPerRound = Math.ceil(totalUsers / 24);
@@ -293,12 +250,16 @@ export const distributeRewards = async() => {
     let skip = 0;
     let distributed = false;
     // if users has been rewarded, then skip to the next 339 users ( skip )
-    const randomSkip = Math.ceil(Math.random() * totalUsers);
-    const registeredUsers = await User.find({}).skip(skip).limit(limit)
+    // const randomSkip = Math.ceil(Math.random() * totalUsers);
+    const skipping = await Skip.find({})
+    const skipTo = skipping.length > 0 ? skipping[skipping-1].skipValue : skip;
+    const registeredUsers = await User.find({}).skip(skipTo).limit(limit)
     let totalRewardedPerRound = []
 
+    console.log('skipTo', skipTo)
+
     for(const user of registeredUsers) {
-        console.log(totalRewardedPerRound.length)
+
          try {
                 distributed = await checkPastDistributions(user.user)
                 const fusionRegistered = await isFusionRegistered(user.user);
@@ -307,9 +268,12 @@ export const distributeRewards = async() => {
 
                  //  if totalRewarded has been == usersPerRound, then stop.
                 if(totalRewardedPerRound.length >= 5) {
+                    skip += usersPerRound;
                     console.log("total reward receivers per round has been reached", totalRewardedPerRound.length) 
                     totalRewardedPerRound = [];
-                    skip += usersPerRound;
+
+                    const skipData = new Skip({ skip })
+                    await skipData.save();
                     break;
                 }
 
@@ -331,10 +295,10 @@ export const distributeRewards = async() => {
                          headers 
                         })
 
-                       totalRewardedPerRound.push(user.user)
-                       console.log(res.statusText)
-
+                        
                     // if(data) {
+                        totalRewardedPerRound.push(user.user)
+                        console.log(res.statusText)
                         //  saved the new distributions
                         // saveDistributionsData(user.user, userRewards)
                     // }

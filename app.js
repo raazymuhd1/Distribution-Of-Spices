@@ -1,7 +1,6 @@
 import express from "express"
 import dotenv from 'dotenv';
 import cors from "cors"
-import { EventEmitter } from "events"
 // request logger
 import morgan from "morgan";
 // rate limiter
@@ -26,29 +25,25 @@ app.use(rateLimit({
 app.use(cors())
 app.use(morgan(`combined`))
 
-
 // db connection
 connectDb()
 
 // indexing new users on each 15-25mins, to avoid request limit (from BOB server).
 setInterval(() => {
     indexingUser()
-}, 2550000)
+}, 5000000)
 
 // will run after each 1 hour
 setInterval(() => {
 	distributeRewards()
 }, 5000)
-// 3600000
-
-
 
 // REMOVING LAST 6 HOURS DISTRIBUTIONS
 setInterval(() => {
 	removeLast24Distributions()
 }, 21600000)	
  
-app.listen(PORT, () => console.log(`server is running on port ${PORT}`) )
+app.listen(PORT, () => console.log(`server is running on port ${PORT}`))
 
 
 
