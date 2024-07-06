@@ -1,16 +1,14 @@
 import express from "express"
 import dotenv from 'dotenv';
 import cors from "cors"
+import { EventEmitter } from "events"
 // request logger
 import morgan from "morgan";
 // rate limiter
 import { rateLimit } from 'express-rate-limit'
 import { connectDb } from "./helpers/dbConnect.js";
-import { distributeRewards, indexingUser, removeLast24Distributions, testAddDistributions } from "./helpers/helpers.js";
+import { distributeRewards, indexingUser, removeLast24Distributions } from "./helpers/helpers.js";
 import { indexingRampage, getInternalRampageUsers } from "./helpers/testTxs.js"
-// routes
-import distributeSpiceRoutes from "./routes/distributeSpice.route.js"
-import { handleKeyEncryption } from "./keyEncryption.js"
 
 dotenv.config();
 
@@ -28,20 +26,22 @@ app.use(rateLimit({
 app.use(cors())
 app.use(morgan(`combined`))
 
+
 // db connection
 connectDb()
 
-// testAddDistributions()
-
+// indexing new users on each 15-25mins, to avoid request limit (from BOB server).
 setInterval(() => {
     indexingUser()
-}, 1500000)
+}, 2550000)
 
 // will run after each 1 hour
 setInterval(() => {
 	distributeRewards()
-}, 2550000)
+}, 5000)
 // 3600000
+
+
 
 // REMOVING LAST 6 HOURS DISTRIBUTIONS
 setInterval(() => {

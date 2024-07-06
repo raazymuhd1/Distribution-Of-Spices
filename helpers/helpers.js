@@ -6,7 +6,6 @@ import fetch from "node-fetch"
 import User from "../models/user.model.js"
 import SpicesDistribution from "../models/spicesDistributions.model.js";
 import Page from "../models/pageData.model.js";
-import { handleKeyEncryption } from "../keyEncryption.js"
 
 /**
  * @dev get contract
@@ -14,8 +13,7 @@ import { handleKeyEncryption } from "../keyEncryption.js"
  */
 const getContract = async() => {
     try {
-        const encryptedRpc = handleKeyEncryption(String(process.env.BOB_RPC_MAINNET))
-        const provider = new ethers.providers.JsonRpcProvider(encryptedRpc)
+        const provider = new ethers.providers.JsonRpcProvider(process.env.BOB_RPC_MAINNET)
         const eventCa = new ethers.Contract(eventContract, EventCoreAbi.abi, provider);
         return eventCa;
     } catch(err) {
@@ -77,26 +75,27 @@ const pages = [
  */
 const getInternalTxs = async() => {
     try {
-        const pageData = await Page.find({})
-        const page = pageData[pageData.length-1]
+        const pages = await Page.find({})
+        const page = pages[pages.length-1]
+        let url = ''
 
-        // &block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}
-        const url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from`
+        if(pages.length > 0) {
+            url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from&block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}`
+        } else {
+            url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from`
+        }
 
-        const { data } = await axios.get(url)
+        const {data} = await axios.get(url)
         const onlyCall = data["items"].filter(item => item.type == "call" && item?.success == true)
-
-        console.log(data?.next_page_params)
-
         const { block_number, index, items_count, transaction_index } = data?.next_page_params
-
+      
+        // uncomment this line, if u want to navigate to the next page & save to pages collections
         // if(block_number && index && items_count && transaction_index) {
         //     const newPage = new Page({ block_number, index, items_count, transaction_index })
         //     await newPage.save()
         // }
 
-        // console.log(data?.next_page_params)
-
+        console.log(data?.next_page_params)
         return onlyCall;
     } catch(err) {
         console.log(err)
@@ -120,8 +119,8 @@ export const userIndexed_ = async(user) => {
     
         //  check whether the wallet already exist or not in the wallet storage
          if(isUserAlreadyExists) {
-            console.log("txs user has been indexed")
-            return "txs user has been indexed";
+            console.log("user has been indexed")
+            return;
          }
     
          const rampageUsers = new User({ user }) 
@@ -198,10 +197,9 @@ const getBotSpices = async() => {
 
 // check is user has been registered on fusion or not
 const isFusionRegistered = async(userWallet) => {
-    const { data } = await axios.get(`${goBobInstance}/user/${userWallet}`)
-    const isUserExists = data?.ok;
-    
     try{
+        const { data } = await axios.get(`${goBobInstance}/user/${userWallet}`)
+        const isUserExists = data?.ok;
         if(!isUserExists) {
             await User.deleteOne({ user: userWallet })
             console.log("deleted")
@@ -218,7 +216,10 @@ const isFusionRegistered = async(userWallet) => {
 // THIS FUNCTION WILL BE EXECUTED EACH 24 hours, TO REMOVE ALL THE LAST 24 DISTRIBUTIONS DATA.
 export const removeLast24Distributions = async() => {
     try {
-        await SpicesDistribution.deleteMany({ amountOfReward: { $gte: 0 } });
+        const spicesReceivers = await SpicesDistribution.find({})
+        if(spicesReceivers.length > 0) {
+            await SpicesDistribution.deleteMany({ amountOfReward: { $gte: 0 } });
+        }
     } catch(err) {
         console.log(last24DistributionsRemoved)
     }
@@ -238,7 +239,7 @@ export async function testAddDistributions() {
     }
 }
 
-// CHECK PAST DISTRIBUTIONS, TO PREVENT POINTS FROM BEING DOUBLE SPEND
+// CHECK PAST DISTRIBUTIONS, TO PREVENT POINTS FROM BEING DOUBLE SPENT
 /**
  * - create a distributions collection
  * - save all user that has been receiving spices rewards and an amount they get
@@ -249,10 +250,11 @@ export const checkPastDistributions = async(user) => {
     // const { data } = await axios.get(`${goBobInstance}/past-distributions?page=1&limit=500`)
 
     try {
-        const distributes = await SpicesDistribution.find({});
-        const distributedData = distributes.map(distri => distri.user)
-
-        if(distributedData.includes(user)) return true;
+        // const distributes = await SpicesDistribution.find({});
+        // const distributedData = distributes.map(distri => distri.user)
+        // if(distributedData.includes(user)) return true;
+        const receiverExists = await SpicesDistribution.find({user});
+        if(receiverExists.includes(user)) return true;
         return false;
     } catch(err) {
         console.log(err)
@@ -265,15 +267,15 @@ const calculateRewards = async(userPoints) => {
      try {
          const totalSpices = await getBotSpices();
          const totalPoints = await _getTotalPoints();
-         const rewardPercentage = 1;
-         const testAmount = Number(totalSpices) / 1000 // => 14838.760384185
+         const rewardPercentage = 1; // 1%
+         const testAmount = (Number(totalSpices) / 1000) - 400// => 14838.760384185
     
         // const adjustReward = (Number(totalSpices) / Number(totalPoints)) * userPoints;
         const adjustReward = (testAmount / Number(totalPoints)) * userPoints;
         const totalRewards = (adjustReward * rewardPercentage) / 100
         const formattedReward = totalRewards.toFixed(8);
-    
-        //  return formattedReward;
+        
+         return formattedReward;
      } catch(err) {
         console.log(err)
      }
@@ -285,19 +287,18 @@ const calculateRewards = async(userPoints) => {
 
 
 export const distributeRewards = async() => {
-    const totalusers = await _getTotalUsers();
-    const usersPerRound = Math.ceil(totalusers / 24);
-    let limit = usersPerRound;
+    const totalUsers = await _getTotalUsers();
+    const usersPerRound = Math.ceil(totalUsers / 24);
+    let limit = 1000;
+    let skip = 0;
     let distributed = false;
     // if users has been rewarded, then skip to the next 339 users ( skip )
-    const randomSkip = Math.floor(Math.random() * usersPerRound)
-    // another alternative would be getting all eligible users and checking whether it has been received rewards or not and limit only 339 users in each round
-    // const registeredUsers = await User.find({}).skip(randomSkip).limit(limit)
-    const registeredUsers = await User.find({}) // getting all users
+    const randomSkip = Math.ceil(Math.random() * totalUsers);
+    const registeredUsers = await User.find({}).skip(skip).limit(limit)
     let totalRewardedPerRound = []
 
-
     for(const user of registeredUsers) {
+        console.log(totalRewardedPerRound.length)
          try {
                 distributed = await checkPastDistributions(user.user)
                 const fusionRegistered = await isFusionRegistered(user.user);
@@ -307,7 +308,9 @@ export const distributeRewards = async() => {
                  //  if totalRewarded has been == usersPerRound, then stop.
                 if(totalRewardedPerRound.length >= 5) {
                     console.log("total reward receivers per round has been reached", totalRewardedPerRound.length) 
-                    return;
+                    totalRewardedPerRound = [];
+                    skip += usersPerRound;
+                    break;
                 }
 
                 if (distributed) {
@@ -321,7 +324,6 @@ export const distributeRewards = async() => {
                         ] }
                        const headers = { 'x-api-key': "", 'Content-Type': 'application/json' }
                      
-                    //   do a check here, if totalRewardedPerRound has been reached (usersPerRound), then return
                     //    spice distribution call
                       const res = await fetch(`${goBobInstance}/distribute-points`, {
                          method: "POST",
@@ -330,18 +332,26 @@ export const distributeRewards = async() => {
                         })
 
                        totalRewardedPerRound.push(user.user)
+                       console.log(res.statusText)
 
                     // if(data) {
                         //  saved the new distributions
-                        //  const newDistribution = new SpicesDistribution({ user: user.user, points: userRewards });
-                        // await newDistribution.save();
+                        // saveDistributionsData(user.user, userRewards)
                     // }
                   }
 
-                  console.log(totalRewardedPerRound.length)
              } catch(err) {
                  console.log(err)
+                //  process.report.writeReport(err)
              }
     }
 
+}
+
+
+async function saveDistributionsData(user, points) {
+    const receiverExists = await SpicesDistribution.find({user});
+    if(receiverExists) return;
+    const newDistribution = new SpicesDistribution({ user, points });
+    await newDistribution.save();
 }
