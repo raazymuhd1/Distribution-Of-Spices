@@ -2,12 +2,12 @@ import express from "express"
 import dotenv from 'dotenv';
 import cors from "cors"
 // request logger
-import morgan from "morgan";
+// import morgan from "morgan";
 // rate limiter
 import { rateLimit } from 'express-rate-limit'
 import { connectDb } from "./helpers/dbConnect.js";
-import { distributeRewards, indexingUser, removeLast24Distributions } from "./helpers/helpers.js";
-import { indexingRampage, getInternalRampageUsers } from "./helpers/testTxs.js"
+import { distributeRewards, indexingUser, removeLast24Distributions, removingPages,removingSkippingAddresses } from "./helpers/helpers.js";
+import { FIFTEEN_MINUTES, TWENTY_FOUR, ONE_HOUR } from "./constants/index.js"
 
 dotenv.config();
 
@@ -22,28 +22,40 @@ app.use(rateLimit({
 	legacyHeaders: false, 
     message: "limit has reachec"
 }))
-app.use(cors())
-app.use(morgan(`combined`))
+// app.use(cors())
+// app.use(morgan(`combined`))
 
 // db connection
 connectDb()
 
-// indexing new users on each 15-25mins, to avoid request limit (from BOB server).
+// removing pages each 5 secs
+// this function duration should be less than indexingUser() function below
 setInterval(() => {
+   removingPages()
+//    test 4 minutes
+}, 400000)
+
+setInterval(() => {
+	removingSkippingAddresses()
+}, 100000)
+
+// indexing new users on each 5-10mins, to avoid request limit (from BOB server). on production
+// u can adjusted according to how fast account creation txs happens each 1-5 minutes
+setInterval(() => {
+	// test 5 minutes
     indexingUser()
-}, 5000000)
+}, 500000)
 
 // will run after each 1 hour
 // setInterval(() => {
 // 	distributeRewards()
-// }, 5000)
+// 	// test duration 5ms, later could be change to 1 hour
+// }, 15000)
 
-// REMOVING LAST 6 HOURS DISTRIBUTIONS
+// REMOVING LAST 24 HOURS DISTRIBUTIONS
 setInterval(() => {
 	removeLast24Distributions()
-}, 21600000)	
+}, FIFTEEN_MINUTES)	
  
 app.listen(PORT, () => console.log(`server is running on port ${PORT}`))
-
-
 

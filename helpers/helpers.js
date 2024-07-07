@@ -23,15 +23,55 @@ const getContract = async() => {
     }
 }
 
-export const getTotalRampageMembers = async() => {
+const getTotalRampageMembers = async() => {
     try {
         const users = await User.find({})
-        console.log(users.length)
+        return users;
     } catch(err) {
         console.log(err)
     }
 }
 
+const usersIsEqual = async() => {
+    try {
+        const totalUsers = await _getTotalUsers()
+        const rampageUsers = await getTotalRampageMembers();
+        const isUsersEqual = Number(totalUsers) === rampageUsers.length;
+       
+        return isUsersEqual;
+    } catch(err) {
+        console.log(err)
+    }
+}
+
+export const removingPages = async() => {
+     try {
+         const isUsersEqual = await usersIsEqual();
+         if(isUsersEqual) {
+           const pagesDeleted = await Page.deleteMany({ block_number: { $gte: 0 } });
+           console.log(pagesDeleted);
+           return;
+         }
+
+         console.log("no pages being removed")
+     }catch(err) {
+        console.log(err)
+     }
+}
+
+export const removingSkippingAddresses = async() => {
+    try{
+        const rampageUsers = await getTotalRampageMembers();
+        const rewardsReceivers = await SpiceDistribution.find({})
+        const receiversLength = rampageUsers.length == rewardsReceivers.length
+
+        // if(receiversLength) {
+            await Skip.deleteMany({ skipValue: { $gte: 0 } })
+        // }
+    } catch (err) {
+
+    }
+}
 
 /**
  * @dev getting internal txs of EventCore to retrieved recently account creation
@@ -39,28 +79,40 @@ export const getTotalRampageMembers = async() => {
  */
 const getInternalTxs = async() => {
     try {
+        const isUsersEqual = await usersIsEqual();
         const pages = await Page.find({})
         const page = pages[pages.length-1]
         let url = ''
 
-        if(pages.length > 0) {
+        if(pages.length > 0 && !isUsersEqual) {
             url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from&block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}`
         } else {
             url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from`
         }
 
         const {data} = await axios.get(url)
-        const onlyCall = data["items"].filter(item => item.type == "call" && item?.success == true)
-        const { block_number, index, items_count, transaction_index } = data?.next_page_params
-      
-        // uncomment this line, if u want to navigate to the next page & save to pages collections
-        // if(block_number && index && items_count && transaction_index) {
-        //     const newPage = new Page({ block_number, index, items_count, transaction_index })
-        //     await newPage.save()
+        const accountCreationTxs = data["items"].filter(item => item.type == "call" && item?.success == true)
+        let isUserExist = false;
+        
+        // for (const tx of accountCreationTxs) {
+        //      const userAddr = await checkingAccountCreationTxs(tx);
+        //      const matchesUser = await User.find({ user: userAddr }) 
+        //      const userMatched = matchesUser[0];
+             
+        //      if(userMatched.user == userAddr) {
+        //         isUserExist = true;
+        //     }
+            
         // }
 
+        if(data?.next_page_params && !isUsersEqual) {
+            const { block_number, index, items_count, transaction_index } = data?.next_page_params
+            const newPage = new Page({ block_number, index, items_count, transaction_index })
+            await newPage.save()
+        }
+
         console.log(data?.next_page_params)
-        return onlyCall;
+        return accountCreationTxs;
     } catch(err) {
         console.log(err)
         return err
@@ -96,6 +148,20 @@ export const userIndexed_ = async(user) => {
   
 }
 
+async function checkingAccountCreationTxs(tx) {
+     const url = `${explorerBob}/transactions/${tx?.transaction_hash}`
+     const res = await fetch(url)
+     const data = await res.json();
+     let user = ""
+            
+    if(data?.method == "createAccount" || data?.method == "dailyLogin" && data?.status == "ok") {
+        user = data?.from?.hash
+        return user;
+     }
+    
+    console.log("not account creation tx")
+}
+
 // 
 export const indexingUser = async() => {
     try {
@@ -103,16 +169,8 @@ export const indexingUser = async() => {
         let user = ""
     
         internalTxs.map(async(tx) => {
-            const url = `${explorerBob}/transactions/${tx?.transaction_hash}`
-            const { data } = await axios.get(url)
-            
-            if(data?.method == "createAccount" || data?.method == "dailyLogin" && data?.status == "ok") {
-                user = data?.from?.hash
-                userIndexed_(user)
-                return;
-            }
-    
-            console.log("not account creation tx")
+            const userAddr = await checkingAccountCreationTxs(tx)
+            userIndexed_(userAddr);
         })
 
     } catch(err) {
@@ -144,10 +202,10 @@ const _getTotalPoints = async() => {
 }
 
 
-export const _getTotalUsers = async() => {
+export async function _getTotalUsers() {
      const contract = await getContract()
     const totalUsers = await contract.getTotalUsers();
-    return totalUsers
+    return totalUsers - 1;
 }
 
 // GET PROJECT TOTAL SPICES
@@ -185,23 +243,23 @@ export const removeLast24Distributions = async() => {
             await SpicesDistribution.deleteMany({ amountOfReward: { $gte: 0 } });
         }
     } catch(err) {
-        console.log(last24DistributionsRemoved)
+        console.log(err)
     }
 }
 
-const distributionsData = [
-    { user: "0x1FA4D89f1d044dCa763610F30E51AAda92C6c38c", amountOfReward: 100 },
-    { user: "0xea4Ee82611Fdaf79bf9FA11cC62Bd59597FcfD5b", amountOfReward: 100 },
-    { user: "0x187a854D82A838156D45763BCb4941d9612c842D", amountOfReward: 100 },
-    { user: "0xD18F8F016d85567cD088b40Bd9E3b3839b95DDB2", amountOfReward: 100 },
-]
+// const distributionsData = [
+//     { user: "0x1FA4D89f1d044dCa763610F30E51AAda92C6c38c", amountOfReward: 100 },
+//     { user: "0xea4Ee82611Fdaf79bf9FA11cC62Bd59597FcfD5b", amountOfReward: 100 },
+//     { user: "0x187a854D82A838156D45763BCb4941d9612c842D", amountOfReward: 100 },
+//     { user: "0xD18F8F016d85567cD088b40Bd9E3b3839b95DDB2", amountOfReward: 100 },
+// ]
 
-export async function testAddDistributions() {
-    for(const data of distributionsData) {
-        const distributions = new SpicesDistribution({ user: data.user, amountOfReward: data.amountOfReward })
-        await distributions.save()
-    }
-}
+// export async function testAddDistributions() {
+//     for(const data of distributionsData) {
+//         const distributions = new SpicesDistribution({ user: data.user, amountOfReward: data.amountOfReward })
+//         await distributions.save()
+//     }
+// }
 
 // CHECK PAST DISTRIBUTIONS, TO PREVENT POINTS FROM BEING DOUBLE SPENT
 /**
@@ -212,7 +270,9 @@ export async function testAddDistributions() {
  */
 export const checkPastDistributions = async(user) => {
     try {
-        const receiverExists = await SpicesDistribution.find({user});
+        const receivers = await SpicesDistribution.find({user});
+        const receiverExists = receivers.map(rec => rec.user);
+        console.log(receiverExists)
         if(receiverExists.includes(user)) return true;
         return false;
     } catch(err) {
@@ -227,11 +287,13 @@ const calculateRewards = async(userPoints) => {
          const totalSpices = await getBotSpices();
          const totalPoints = await _getTotalPoints();
          const rewardPercentage = 1; // 1%
-         const testAmount = (Number(totalSpices) / 1000) - 400// => 14838.760384185
+         const testAmount = (Number(totalSpices)) / 1000 - 4000// => 10000 test spices amount
     
+        // later uncomment this line, after performing spice distributions testing for 10K amounts;
         // const adjustReward = (Number(totalSpices) / Number(totalPoints)) * userPoints;
+        // // later comment this line, after performing spice distributions testing for 10K amounts;
         const adjustReward = (testAmount / Number(totalPoints)) * userPoints;
-        const totalRewards = (adjustReward * rewardPercentage) / 100
+        const totalRewards = (adjustReward * rewardPercentage) / 100 
         const formattedReward = totalRewards.toFixed(8);
         
          return formattedReward;
@@ -245,18 +307,17 @@ const calculateRewards = async(userPoints) => {
  */
 export const distributeRewards = async() => {
     const totalUsers = await _getTotalUsers();
-    const usersPerRound = Math.ceil(totalUsers / 24);
-    let limit = 1000;
+    const usersPerRound = Math.ceil(Number(totalUsers) / 24);
+    let limit = usersPerRound;
     let skip = 0;
     let distributed = false;
     // if users has been rewarded, then skip to the next 339 users ( skip )
     // const randomSkip = Math.ceil(Math.random() * totalUsers);
     const skipItems = await Skip.find({})
-    const skipTo = skipItems[skipItems.length-1].skipValue ?? skip;
+    let skipTo = skipItems.length > 0 ? skipItems[skipItems.length-1].skipValue : skip ;
     const registeredUsers = await User.find({}).skip(skipTo).limit(limit)
+    const totalDistributed = await SpicesDistribution.find({});
     let totalRewardedPerRound = []
-
-    console.log('rampageUsers', skipTo)
 
     for(const user of registeredUsers) {
 
@@ -268,13 +329,14 @@ export const distributeRewards = async() => {
 
                  //  if totalRewarded has been == usersPerRound, then stop.
                 if(totalRewardedPerRound.length >= 5) {
-                    skip += usersPerRound;
+                    skipTo += usersPerRound;
+                    console.log(skipTo)
                     console.log("total reward receivers per round has been reached", totalRewardedPerRound.length) 
                     totalRewardedPerRound = [];
 
-                    const skipData = new Skip({ skipValue: skip })
+                    const skipData = new Skip({ skipValue: skipTo })
                     await skipData.save();
-                    break;
+                    return;
                 }
 
                 if (distributed) {
@@ -286,7 +348,7 @@ export const distributeRewards = async() => {
                       const data = { transfers: [ 
                         { toAddress: `${user.user}`, points: userRewards } 
                         ] }
-                       const headers = { 'x-api-key': "", 'Content-Type': 'application/json' }
+                       const headers = { 'x-api-key': process.env.BOB_API_KEY, 'Content-Type': 'application/json' }
                      
                     //    spice distribution call
                       const res = await fetch(`${goBobInstance}/distribute-points`, {
@@ -295,17 +357,16 @@ export const distributeRewards = async() => {
                          headers 
                         })
 
-                        
-                    // if(data) {
-                        totalRewardedPerRound.push(user.user)
+                    // if(res) {
                         console.log(res.statusText)
                         //  saved the new distributions
-                        // saveDistributionsData(user.user, userRewards)
+                        saveDistributionsData(user.user, userRewards)
+                        totalRewardedPerRound.push(user.user)
                     // }
                   }
 
              } catch(err) {
-                 console.log(err)
+                 console.log(err.message)
                 //  process.report.writeReport(err)
              }
     }
@@ -315,7 +376,7 @@ export const distributeRewards = async() => {
 
 async function saveDistributionsData(user, points) {
     const receiverExists = await SpicesDistribution.find({user});
-    if(receiverExists) return;
-    const newDistribution = new SpicesDistribution({ user, points });
+    if(receiverExists.length > 0) return;
+    const newDistribution = new SpicesDistribution({ user, amountOfReward: points });
     await newDistribution.save();
 }
