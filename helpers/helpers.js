@@ -332,7 +332,7 @@ export const distributeRewards = async() => {
                 console.log(totalRewardedPerRound.length)
 
                  //  if totalRewarded has been == usersPerRound, then stop.
-                if(totalDistributeds.length >= skipTo) {
+                if(totalDistributeds.length > 0 && totalDistributeds.length == skipTo) {
                     skipTo += usersPerRound;
                     console.log("skip to",skipTo)
                     console.log("total reward receivers per round has been reached", totalRewardedPerRound.length) 
@@ -375,6 +375,10 @@ export const distributeRewards = async() => {
     }
 
 }
+
+// Call distributeRewards immediately and then every hour
+// distributeRewards();
+// setInterval(distributeRewards, 3600000); // 3600000 ms = 1 hour
 
 
 async function saveDistributionsData(user, points) {

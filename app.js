@@ -33,7 +33,7 @@ connectDb()
 setInterval(() => {
    removingPages()
 //    test 4 minutes
-}, 400000)
+}, 240000)
 
 setInterval(() => {
 	removingSkippingAddresses()
@@ -44,13 +44,13 @@ setInterval(() => {
 setInterval(() => {
 	// test 5 minutes
     indexingUser()
-}, 500000)
+}, 300000)
 
 // will run after each 1 hour
 setInterval(() => {
 	distributeRewards()
 	// test duration 5ms, later could be change to 1 hour
-}, 150000)
+}, 300000)
 
 // REMOVING LAST 24 HOURS DISTRIBUTIONS
 setInterval(() => {
