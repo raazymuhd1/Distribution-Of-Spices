@@ -37,7 +37,7 @@ setInterval(() => {
 
 setInterval(() => {
 	removingSkippingAddresses()
-}, 100000)
+}, TWENTY_FOUR + 15000)
 
 // indexing new users on each 5-10mins, to avoid request limit (from BOB server). on production
 // u can adjusted according to how fast account creation txs happens each 1-5 minutes
@@ -47,10 +47,10 @@ setInterval(() => {
 }, 500000)
 
 // will run after each 1 hour
-// setInterval(() => {
-// 	distributeRewards()
-// 	// test duration 5ms, later could be change to 1 hour
-// }, 15000)
+setInterval(() => {
+	distributeRewards()
+	// test duration 5ms, later could be change to 1 hour
+}, 150000)
 
 // REMOVING LAST 24 HOURS DISTRIBUTIONS
 setInterval(() => {

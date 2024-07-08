@@ -272,7 +272,7 @@ export const checkPastDistributions = async(user) => {
     try {
         const receivers = await SpicesDistribution.find({user});
         const receiverExists = receivers.map(rec => rec.user);
-        console.log(receiverExists)
+        console.log(receiverExists.includes(user))
         if(receiverExists.includes(user)) return true;
         return false;
     } catch(err) {
@@ -316,8 +316,10 @@ export const distributeRewards = async() => {
     const skipItems = await Skip.find({})
     let skipTo = skipItems.length > 0 ? skipItems[skipItems.length-1].skipValue : skip ;
     const registeredUsers = await User.find({}).skip(skipTo).limit(limit)
-    const totalDistributed = await SpicesDistribution.find({});
+    const totalDistributeds = await SpicesDistribution.find({});
     let totalRewardedPerRound = []
+
+    console.log(`"skip to ${skipTo}`)
 
     for(const user of registeredUsers) {
 
@@ -327,10 +329,12 @@ export const distributeRewards = async() => {
                 const { points, rampageRegistered } = await getUserDetails(user.user);
                 const userRewards = await calculateRewards(points)
 
+                console.log(totalRewardedPerRound.length)
+
                  //  if totalRewarded has been == usersPerRound, then stop.
-                if(totalRewardedPerRound.length >= 5) {
+                if(totalDistributeds.length >= skipTo) {
                     skipTo += usersPerRound;
-                    console.log(skipTo)
+                    console.log("skip to",skipTo)
                     console.log("total reward receivers per round has been reached", totalRewardedPerRound.length) 
                     totalRewardedPerRound = [];
 
@@ -358,10 +362,9 @@ export const distributeRewards = async() => {
                         })
 
                     // if(res) {
-                        console.log(res.statusText)
+                        totalRewardedPerRound.push(user.user)
                         //  saved the new distributions
                         saveDistributionsData(user.user, userRewards)
-                        totalRewardedPerRound.push(user.user)
                     // }
                   }
 
@@ -375,8 +378,15 @@ export const distributeRewards = async() => {
 
 
 async function saveDistributionsData(user, points) {
-    const receiverExists = await SpicesDistribution.find({user});
-    if(receiverExists.length > 0) return;
-    const newDistribution = new SpicesDistribution({ user, amountOfReward: points });
-    await newDistribution.save();
+    try {
+        const receiverExists = await SpicesDistribution.find({user});
+        const rewardsReceiver = receiverExists.map(rec => rec.user);
+
+        if(rewardsReceiver.includes(user)) return;
+        const newDistribution = new SpicesDistribution({ user, amountOfReward: points });
+        await newDistribution.save();
+    } catch(err) {
+        console.log(err)
+        return err;
+    }
 }
