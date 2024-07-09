@@ -64,7 +64,7 @@ export const checkPastDistributions = async(user) => {
         const receivers = await SpiceDistributeTest.find({toAddress: user});
         const receiverExists = receivers.map(rec => rec.toAddress);
         console.log(receiverExists.includes(user))
-        if(receiverExists.includes(user)) return true;
+        if(receivers.length > 0) return true;
         return false;
     } catch(err) {
         console.log(err)
@@ -86,6 +86,7 @@ export const userRewardsPerWaves = async() => {
         console.log(registeredUsers.length, Number(usersPerRound))
 
         if(registeredUsers.length == Number(usersPerRound)) {
+            // I COULD CHECK HERE, IF USER HAS BEEN REWARDED THEN EXCLUDED/ Dont include in rewards receivers
             const rewardsReceivers = new RewardReceivers({ transfers: registeredUsers })
             await rewardsReceivers.save()
             console.log("rewards receiver has been added")
@@ -183,7 +184,7 @@ async function saveDistributionsData(toAddress, points) {
         const isExist = rewardReceiver.map(user => user.toAddress)
 
         console.log(!isExist.includes(toAddress))
-        if(!isExist.includes(toAddress)) {
+        if(rewardReceiver.length == 0) {
             const newDistribution = new SpiceDistributeTest({ toAddress, points });
             await newDistribution.save();
             console.log("rewards/spices distributed being saved")

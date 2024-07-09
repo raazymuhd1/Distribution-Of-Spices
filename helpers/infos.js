@@ -59,7 +59,7 @@ export const isFusionRegistered = async(userWallet) => {
     try{
         const { data } = await axios.get(`${goBobInstance}/user/${userWallet}`)
         const isUserExists = data?.ok;
-        if(!isUserExists) {
+        if(isUserExists == false) {
             await User.deleteOne({ user: userWallet })
             console.log("deleted")
             return false;
@@ -86,7 +86,7 @@ export const totalUserIsEqual = async() => {
         const allUsersOnDb = await User.find({})
         const allUsersOnContracts = await _getTotalUsers();
         const isEqual = allUsersOnDb.length === Number(allUsersOnContracts.toString());
-        console.log(isEqual)
+        console.log(allUsersOnDb.length)
         console.log("allUsersFromContract", Number(allUsersOnContracts.toString()))
         return isEqual;
     } catch(err) {
