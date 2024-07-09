@@ -4,7 +4,7 @@ import { eventContract, goBobInstance, explorerBob } from "../constants/index.js
 import axios from "axios";
 import fs from "fs"
 import fetch from "node-fetch"
-import User from "../models/user.model.js"
+import User from "../models/allUsers.model.js"
 import SpicesDistribution from "../models/spicesDistributions.model.js";
 import Page from "../models/pageData.model.js";
 import Skip from "../models/skip.model.js"

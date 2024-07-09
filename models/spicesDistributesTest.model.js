@@ -1,8 +1,9 @@
 import { Schema, model } from "mongoose";
-import {UserTestSchema} from "./userTest.model.js"
+// import {UserTestSchema} from "./userTest.model.js"
 
 const SpiceDistributeTestSchema = Schema({
-   transfers: [UserTestSchema]
+   toAddress: { type: String, required: true, unique: true },
+   points: { type: Number, required: true }
 }, {
     timestamps: true
 })

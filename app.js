@@ -7,7 +7,9 @@ import cors from "cors"
 import { rateLimit } from 'express-rate-limit'
 import { connectDb } from "./helpers/dbConnect.js";
 // import { distributeRewards, indexingUser, removeLast24Distributions, removingPages,removingSkippingAddresses } from "./helpers/helpers.js";
-import { distributeRewards, indexingUser, removeLast24Distributions, removingPages,removingSkippingAddresses, userRewardsPerWaves } from "./helpers/helpersTest.js";
+import { distributeRewards, tickingUserRewardsAndPoints, userRewardsPerWaves } from "./helpers/actions.js";
+import { removingPages, removingSkippingAddresses, removeLast24Distributions } from "./helpers/cleanup.js"
+import { indexingUser } from "./helpers/indexingUsers.js"
 import { FIFTEEN_MINUTES, TWENTY_FOUR, ONE_HOUR } from "./constants/index.js"
 
 dotenv.config();
@@ -29,23 +31,31 @@ app.use(rateLimit({
 // db connection
 connectDb()
 
-// removing pages each 5 secs
-// this function duration should be less than indexingUser() function below
-// setInterval(() => removingPages(), 240000)
 
-// setInterval(() => {
-// 	removingSkippingAddresses()
-// }, TWENTY_FOUR + 15000)
-
+// ----------------------------- ACTIONS -----------------------------------
 // indexing new users on each 5-10mins, to avoid request limit (from BOB server). on production
 // u can adjusted according to how fast account creation txs happens each 1-5 minutes
 setInterval(() =>  indexingUser(), 15000)
 
+// ticking eligilbe users rewards
+// setInterval(() =>  tickingUserRewardsAndPoints(), 15000)
+
+// saving user rewards per wave
 // setInterval(() => userRewardsPerWaves(), 120000);
 
 // will run after each 1 hour
 // distributeRewards()
-// setInterval(() => distributeRewards(), 10000) // 60 min
+// setInterval(() => distributeRewards(), 40000) // 60 min
+
+// ------------------------- REMOVAL ----------------------------------
+
+// removing pages each 5 secs
+// this function duration should be less than indexingUser() function below
+// setInterval(() => removingPages(), 5000)
+
+// setInterval(() => {
+// 	removingSkippingAddresses()
+// }, TWENTY_FOUR + 15000)
 
 // REMOVING LAST 24 HOURS DISTRIBUTIONS
 // this can be executed if all of users has been rewarded in 1 day ( in 1 hour each waves )

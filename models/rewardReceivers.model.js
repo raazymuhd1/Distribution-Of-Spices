@@ -1,8 +1,8 @@
 import { Schema, model } from "mongoose"
-import {UserTestSchema} from "./userTest.model.js"
+import {EligibleUsersSchema} from "./eligibleUsers.model.js"
 
 const RewardReceiversSchema = Schema({
-    transfers: [UserTestSchema]
+    transfers: [EligibleUsersSchema]
 }, { timestamps: true })
 
 const RewardReceivers = model("RewardReceiver", RewardReceiversSchema)
