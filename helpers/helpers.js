@@ -317,7 +317,11 @@ export const distributeRewards = async() => {
     let skipTo = skipItems.length > 0 ? skipItems[skipItems.length-1].skipValue : skip ;
     const registeredUsers = await User.find({}).skip(skipTo).limit(limit)
     const totalDistributeds = await SpicesDistribution.find({});
-    let totalRewardedPerRound = []
+    let totalRewardedPerRound = 0;
+
+    // INSTEAD OF LOOPING ALL USERS LIKE THIS, INSERT ALL USERS ON EACH WAVE TO A COLLECTIONS EACH 30 MINS BFORE THE DISTRIBUTIONS TIME OCCURED
+    // - make a new function that could handle the distributed and points checks, And a collection called "RewardReceiver", insert all rewardees onto it.
+    // - run the function 30-40 mins bfore the rewards distributions happens each hour.
 
     console.log(`"skip to ${skipTo}`)
 
@@ -325,23 +329,13 @@ export const distributeRewards = async() => {
 
          try {
                 distributed = await checkPastDistributions(user.user)
+                // ## TODO
+                // these 2 checking could be seperated into user indexing, to reduce some time being taken to distribute rewards.
                 const fusionRegistered = await isFusionRegistered(user.user);
                 const { points, rampageRegistered } = await getUserDetails(user.user);
                 const userRewards = await calculateRewards(points)
 
-                console.log(totalRewardedPerRound.length)
-
-                 //  if totalRewarded has been == usersPerRound, then stop.
-                if(totalDistributeds.length > 0 && totalDistributeds.length == skipTo) {
-                    skipTo += usersPerRound;
-                    console.log("skip to",skipTo)
-                    console.log("total reward receivers per round has been reached", totalRewardedPerRound.length) 
-                    totalRewardedPerRound = [];
-
-                    const skipData = new Skip({ skipValue: skipTo })
-                    await skipData.save();
-                    return;
-                }
+                console.log("rewarded", totalRewardedPerRound)
 
                 if (distributed) {
                     console.log(`User ${user.user} already received rewards, skipping...`);
@@ -349,6 +343,8 @@ export const distributeRewards = async() => {
                 }
      
                 if(points > 0 && fusionRegistered && rampageRegistered) {
+                    // ## TODO
+                    // i also could gather all wallet that eligible, and distributed in one go without looping
                       const data = { transfers: [ 
                         { toAddress: `${user.user}`, points: userRewards } 
                         ] }
@@ -362,11 +358,23 @@ export const distributeRewards = async() => {
                         })
 
                     // if(res) {
-                        totalRewardedPerRound.push(user.user)
+                        totalRewardedPerRound += 1
                         //  saved the new distributions
                         saveDistributionsData(user.user, userRewards)
                     // }
                   }
+                    // ## TODO
+                    // another solutions here, i can save total `totalRewardedPerRound` in a collection, to make it last until each phase ended.
+                    if(totalRewardedPerRound == usersPerRound) {
+                        skipTo += usersPerRound;
+                        console.log("skip to",skipTo)
+                        console.log("total reward receivers per round has been reached", totalRewardedPerRound) 
+                        totalRewardedPerRound = 0;
+
+                        const skipData = new Skip({ skipValue: skipTo })
+                        await skipData.save();
+                        return;
+                    }
 
              } catch(err) {
                  console.log(err.message)
