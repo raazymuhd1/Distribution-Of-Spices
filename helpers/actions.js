@@ -61,10 +61,8 @@ export async function tickingUserRewardsAndPoints() {
  */
 export const checkPastDistributions = async(user) => {
     try {
-        const receivers = await SpiceDistributeTest.find({toAddress: user});
-        const receiverExists = receivers.map(rec => rec.toAddress);
-        console.log(receiverExists.includes(user))
-        if(receivers && receivers.length > 0) return true;
+        const receivers = await SpiceDistributeTest.findOne({toAddress: user});
+        if(receivers) return true;
         return false;
     } catch(err) {
         console.log(err)
@@ -109,6 +107,7 @@ export const userRewardsPerWaves = async() => {
 
 export const distributeRewards = async() => {
          try {
+            // I could get the last index/items on this collections
             const rewardReceivers = await RewardReceivers.find({});
             const transfersData = rewardReceivers[0]?.transfers;
             let distributed = false;

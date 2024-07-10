@@ -11,6 +11,9 @@ import { distributeRewards, tickingUserRewardsAndPoints, userRewardsPerWaves } f
 import { removingPages, removingSkippingAddresses, removeLast24Distributions } from "./helpers/cleanup.js"
 import { indexingUser } from "./helpers/indexingUsers.js"
 import { FIFTEEN_MINUTES, TWENTY_FOUR, ONE_HOUR } from "./constants/index.js"
+import EligibleUsers from "./models/eligibleUsers.model.js"
+import RewardReceivers from "./models/rewardReceivers.model.js"
+import SpiceDistributeTest from "./models/spicesDistributesTest.model.js"
 
 dotenv.config();
 
@@ -35,7 +38,7 @@ connectDb()
 // ----------------------------- ACTIONS -----------------------------------
 // indexing new users on each 5-10mins, to avoid request limit (from BOB server). on production
 // u can adjusted according to how fast account creation txs happens each 1-5 minutes
-// setInterval(() =>  indexingUser(), 15000)
+setInterval(() =>  indexingUser(), 10000)
 
 // ticking eligilbe users rewards
 // run this on each 20-30 min bfore each phase
@@ -63,6 +66,16 @@ connectDb()
 // REMOVING LAST 24 HOURS DISTRIBUTIONS
 // this can be executed if all of users has been rewarded in 1 day ( in 1 hour each waves )
 // setInterval(() => removeLast24Distributions(), FIFTEEN_MINUTES)	
+
+const filteringDistributedRewards = async() => {
+	const eligUsers = await EligibleUsers.find({});
+	const spicesDistributed = await SpiceDistributeTest.find({})
+
+	for (const user of eligUsers) {
+		  const matchesAddress = spicesDistributed.filter(receiver => receiver.toAddress == user.toAddress);
+		 console.log(matchesAddress)
+	}	
+}
  
 app.listen(PORT, () => console.log(`server is running on port ${PORT}`))
 

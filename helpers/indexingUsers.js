@@ -17,7 +17,7 @@ const getInternalTxs = async() => {
         const page = pages[pages.length-1]
         let url = ''
 
-        if(pages.length > 0 && !isTotalUsersEqual) {
+        if(pages && pages.length > 0 && !isTotalUsersEqual) {
             url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from&block_number=${page.block_number}&index=${page.index}&items_count=${page.items_count}&transaction_index=${page.transaction_index}`
         } else {
             url = `${explorerBob}/addresses/${eventContract}/internal-transactions?filter=to%20%7C%20from`
@@ -56,8 +56,10 @@ const eligibleUsersIndexed_ = async(user) => {
         const { points, rampageRegistered } = await getUserDetails(user);
         const rewards = await calculateRewards(points);
         const isFusionMember = await isFusionRegistered(user);
+
+        console.log(isUserAlreadyExists)
         //  check whether the wallet already exist or not in the wallet storage
-         if(isUserAlreadyExists && isUserAlreadyExists.length == 0) {
+         if(!isUserAlreadyExists) {
             if(points > 0 && rampageRegistered && isFusionMember) {
                 const eligibleUsers = new EligibleUsers({ toAddress: user, points: rewards }) 
                 await eligibleUsers.save()
@@ -76,9 +78,8 @@ const eligibleUsersIndexed_ = async(user) => {
 const allUsersIndexed_ = async(user) => {
     try {
         const isUserAlreadyExists = await User.findOne({ user })
-
         //  check whether the wallet already exist or not in the wallet storage
-         if(isUserAlreadyExists && isUserAlreadyExists.length == 0) {
+         if(!isUserAlreadyExists) {
              const eligibleUsers = new User({ user }) 
              await eligibleUsers.save()
          } else {
