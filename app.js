@@ -35,17 +35,20 @@ connectDb()
 // ----------------------------- ACTIONS -----------------------------------
 // indexing new users on each 5-10mins, to avoid request limit (from BOB server). on production
 // u can adjusted according to how fast account creation txs happens each 1-5 minutes
-setInterval(() =>  indexingUser(), 15000)
+// setInterval(() =>  indexingUser(), 15000)
 
 // ticking eligilbe users rewards
+// run this on each 20-30 min bfore each phase
 // setInterval(() =>  tickingUserRewardsAndPoints(), 15000)
 
 // saving user rewards per wave
-// setInterval(() => userRewardsPerWaves(), 120000);
+// run this function on each 45 min bfore each phase 1200000
+// setInterval(() => userRewardsPerWaves(), 10000);
 
 // will run after each 1 hour
 // distributeRewards()
-// setInterval(() => distributeRewards(), 40000) // 60 min
+// 1800000 / 30 min
+// setInterval(() => distributeRewards(), 1800000) // 60 min
 
 // ------------------------- REMOVAL ----------------------------------
 

@@ -64,7 +64,7 @@ export const checkPastDistributions = async(user) => {
         const receivers = await SpiceDistributeTest.find({toAddress: user});
         const receiverExists = receivers.map(rec => rec.toAddress);
         console.log(receiverExists.includes(user))
-        if(receivers.length > 0) return true;
+        if(receivers && receivers.length > 0) return true;
         return false;
     } catch(err) {
         console.log(err)
@@ -83,14 +83,15 @@ export const userRewardsPerWaves = async() => {
         let skipTo = skipItems.length > 0 ? skipItems[skipItems.length-1].skipValue : skip ;
         const registeredUsers = await EligibleUsers.find({}).skip(skipTo).limit(limit)
 
-        console.log(registeredUsers.length, Number(usersPerRound))
+        console.log(skipTo) // 0xBc4bB0072d6004908D8A0790eeFfBb35A7b4D9eC
+        console.log(registeredUsers[0].toAddress) // 0xBc4bB0072d6004908D8A0790eeFfBb35A7b4D9eC
 
         if(registeredUsers.length == Number(usersPerRound)) {
-            // I COULD CHECK HERE, IF USER HAS BEEN REWARDED THEN EXCLUDED/ Dont include in rewards receivers
+            // I COULD CHECK HERE ON SpiceDistributeTest collections, IF USER HAS BEEN REWARDED/EXIST THEN EXCLUDED/ Dont include in rewards receivers
             const rewardsReceivers = new RewardReceivers({ transfers: registeredUsers })
             await rewardsReceivers.save()
             console.log("rewards receiver has been added")
-            skipTo += Number(usersPerRound);
+            skipTo += Number(usersPerRound) + 2; // + 2 bcoz a collections starts at index zero, if length 100 last item will be at index 101
 
             const addedSkipStep = new Skip({skipValue: skipTo})
             await addedSkipStep.save()
@@ -102,6 +103,77 @@ export const userRewardsPerWaves = async() => {
 
     } catch(err) {
         console.log(err)
+    }
+}
+
+
+export const distributeRewards = async() => {
+         try {
+            const rewardReceivers = await RewardReceivers.find({});
+            const transfersData = rewardReceivers[0]?.transfers;
+            let distributed = false;
+            let countPhase = 0;
+            let totalDistributed = 0;
+
+            for (const user of transfersData) {
+                 distributed = await checkPastDistributions(user.toAddress);
+
+                 console.log(`count phase: ${countPhase}`)
+                 if(distributed) {
+                    console.log("this user has been received rewards", user.toAddress)
+                    continue;
+                 }
+                const data = { transfers: [{ toAddress: user.toAddress, points: user.points }] }
+                const headers = { 'x-api-key': process.env.BOB_API_KEY, 'Content-Type': 'application/json' }
+                        //    spice distribution call
+                const res = await fetch(`${goBobInstance}/distribute-points`, {
+                             method: "POST",
+                             body: JSON.stringify(data),  
+                             headers 
+                             })
+
+                // if(res) {
+                    //  saved the new distributions
+                    countPhase += 1;
+                    totalDistributed += 1;
+                    saveDistributionsData(user.toAddress, user.points);
+                    console.log(`count phase: ${countPhase}`)
+                    // }
+
+                if(countPhase == transfersData.length) {
+                    count = 0
+                    console.log("total rewards receiver this phase has been reached")
+                    const updated = await RewardReceivers.deleteOne({ _id: rewardReceivers[0]._id })
+                    console.log(updated);
+                    return;
+                }
+
+            }
+
+             } catch(err) {
+                 console.log(err.message)
+             }
+
+}
+
+
+async function saveDistributionsData(toAddress, points) {
+    try {
+        const rewardReceiver = await SpiceDistributeTest.find({ toAddress })
+        const isExist = rewardReceiver.map(user => user.toAddress)
+
+        console.log(!isExist.includes(toAddress))
+        if(rewardReceiver && rewardReceiver.length == 0) {
+            const newDistribution = new SpiceDistributeTest({ toAddress, points });
+            await newDistribution.save();
+            console.log("rewards/spices distributed being saved")
+            return;
+        }
+
+        console.log("rewards/spices distributed is not being saved")
+    } catch(err) {
+        console.log(err)
+        return err;
     }
 }
 
@@ -137,66 +209,6 @@ export const userRewardsPerWaves = async() => {
 
 // }
 
-export const distributeRewards = async() => {
-         try {
-            const rewardReceivers = await RewardReceivers.find({});
-            const transfersData = rewardReceivers[0]?.transfers;
-            let distributed = false;
-            
-            for (const user of transfersData) {
-                 distributed = await checkPastDistributions(user.toAddress);
-                 if(distributed) {
-                    console.log("this user has been received rewards", user)
-                    continue;
-                 }
-                const data = { transfers: [
-                    { toAddress: user.toAddress, points: user.points }
-                ] }
-                const headers = { 'x-api-key': process.env.BOB_API_KEY, 'Content-Type': 'application/json' }
-                        //    spice distribution call
-                const res = await fetch(`${goBobInstance}/distribute-points`, {
-                             method: "POST",
-                             body: JSON.stringify(data),  
-                             headers 
-                             })
-                // if(res) {
-                    //  saved the new distributions
-                    saveDistributionsData(user.toAddress, user.points);
-                // await RewardReceivers.deleteMany({ transfers: [{ points: { $gte: 0} }] })
-                // }
-
-            }
-
-
-             } catch(err) {
-                 console.log(err.message)
-                //  process.report.writeReport(err)
-             }
-
-}
-
-
-
-
-async function saveDistributionsData(toAddress, points) {
-    try {
-        const rewardReceiver = await SpiceDistributeTest.find({ toAddress })
-        const isExist = rewardReceiver.map(user => user.toAddress)
-
-        console.log(!isExist.includes(toAddress))
-        if(rewardReceiver.length == 0) {
-            const newDistribution = new SpiceDistributeTest({ toAddress, points });
-            await newDistribution.save();
-            console.log("rewards/spices distributed being saved")
-            return;
-        }
-
-        console.log("rewards/spices distributed is not being saved")
-    } catch(err) {
-        console.log(err)
-        return err;
-    }
-}
 // async function saveDistributionsData(toAddress, points) {
 //     try {
 //         const rewardReceiver = await SpiceDistributeTest.find({ toAddress })

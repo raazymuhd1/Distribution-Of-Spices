@@ -57,7 +57,7 @@ const eligibleUsersIndexed_ = async(user) => {
         const rewards = await calculateRewards(points);
         const isFusionMember = await isFusionRegistered(user);
         //  check whether the wallet already exist or not in the wallet storage
-         if(isUserAlreadyExists.length == 0) {
+         if(isUserAlreadyExists && isUserAlreadyExists.length == 0) {
             if(points > 0 && rampageRegistered && isFusionMember) {
                 const eligibleUsers = new EligibleUsers({ toAddress: user, points: rewards }) 
                 await eligibleUsers.save()
@@ -78,7 +78,7 @@ const allUsersIndexed_ = async(user) => {
         const isUserAlreadyExists = await User.findOne({ user })
 
         //  check whether the wallet already exist or not in the wallet storage
-         if(isUserAlreadyExists.length == 0) {
+         if(isUserAlreadyExists && isUserAlreadyExists.length == 0) {
              const eligibleUsers = new User({ user }) 
              await eligibleUsers.save()
          } else {
