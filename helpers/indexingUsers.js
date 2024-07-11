@@ -26,7 +26,7 @@ const getInternalTxs = async() => {
         const {data} = await axios.get(url)
         const accountCreationTxs = data["items"].filter(item => item.type == "call" && item?.success == true)
 
-        console.log(data?.next_page_params)
+        console.log(`next page ${data?.next_page_params}`)
         if(data?.next_page_params && !isTotalUsersEqual) {
             const { block_number, index, items_count, transaction_index } = data?.next_page_params
             const pageExists = await Page.find({ block_number })

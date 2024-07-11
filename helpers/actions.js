@@ -7,7 +7,9 @@ import RewardReceivers from "../models/rewardReceivers.model.js"
 import SpiceDistributeTest from "../models/spicesDistributesTest.model.js"
 import { getBotSpices, _getTotalPoints, getUserDetails } from "./infos.js"
 
-
+/**
+ * @dev calculating rewards based on points they earned
+ */
 export const calculateRewards = async(userPoints) => {
      
      try {
@@ -29,7 +31,9 @@ export const calculateRewards = async(userPoints) => {
      }
 }
 
-
+/**
+ * @dev checking all eligible users points each 15-30 secs, if users points is 0 then removed it from collections
+ */
 export async function tickingUserRewardsAndPoints() {
     try {
         const usersTest = await EligibleUsers.find({});
@@ -71,6 +75,10 @@ export const checkPastDistributions = async(user) => {
 }
 
 
+/**
+ * @dev adds all eligible users for receiving rewards to rewardsReceiver collections
+ * 
+ */
 export const userRewardsPerWaves = async() => {
     try {
         const totalUsers = await EligibleUsers.find({});

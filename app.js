@@ -67,15 +67,15 @@ setInterval(() =>  indexingUser(), 10000)
 // this can be executed if all of users has been rewarded in 1 day ( in 1 hour each waves )
 // setInterval(() => removeLast24Distributions(), FIFTEEN_MINUTES)	
 
-const filteringDistributedRewards = async() => {
-	const eligUsers = await EligibleUsers.find({});
-	const spicesDistributed = await SpiceDistributeTest.find({})
+// const filteringDistributedRewards = async() => {
+// 	const eligUsers = await EligibleUsers.find({});
+// 	const spicesDistributed = await SpiceDistributeTest.find({})
 
-	for (const user of eligUsers) {
-		  const matchesAddress = spicesDistributed.filter(receiver => receiver.toAddress == user.toAddress);
-		 console.log(matchesAddress)
-	}	
-}
+// 	for (const user of eligUsers) {
+// 		  const matchesAddress = spicesDistributed.filter(receiver => receiver.toAddress == user.toAddress);
+// 		 console.log(matchesAddress)
+// 	}	
+// }
  
 app.listen(PORT, () => console.log(`server is running on port ${PORT}`))
 
