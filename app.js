@@ -1,19 +1,13 @@
 import express from "express"
 import dotenv from 'dotenv';
 import cors from "cors"
-// request logger
-// import morgan from "morgan";
+
 // rate limiter
 import { rateLimit } from 'express-rate-limit'
 import { connectDb } from "./helpers/dbConnect.js";
-// import { distributeRewards, indexingUser, removeLast24Distributions, removingPages,removingSkippingAddresses } from "./helpers/helpers.js";
-import { distributeRewards, tickingUserRewardsAndPoints, userRewardsPerWaves } from "./helpers/actions.js";
-import { removingPages, removingSkippingAddresses, removeLast24Distributions } from "./helpers/cleanup.js"
-import { indexingUser } from "./helpers/indexingUsers.js"
+import { distributeRewards } from "./helpers/actions.js";
+import { removeLast24Distributions } from "./helpers/cleanup.js"
 import { FIFTEEN_MINUTES, TWENTY_FOUR, ONE_HOUR } from "./constants/index.js"
-import EligibleUsers from "./models/eligibleUsers.model.js"
-import RewardReceivers from "./models/rewardReceivers.model.js"
-import SpiceDistributeTest from "./models/spicesDistributesTest.model.js"
 
 dotenv.config();
 
@@ -28,54 +22,25 @@ app.use(rateLimit({
 	legacyHeaders: false, 
     message: "limit has reachec"
 }))
-// app.use(cors())
-// app.use(morgan(`combined`))
 
 // db connection
 connectDb()
 
 
 // ----------------------------- ACTIONS -----------------------------------
-// indexing new users on each 5-10mins, to avoid request limit (from BOB server). on production
-// u can adjusted according to how fast account creation txs happens each 1-5 minutes
-setInterval(() =>  indexingUser(), 10000)
 
-// ticking eligilbe users rewards
-// run this on each 20-30 min bfore each phase
-// setInterval(() =>  tickingUserRewardsAndPoints(), 15000)
-
-// saving user rewards per wave
-// run this function on each 45 min bfore each phase 1200000
-// setInterval(() => userRewardsPerWaves(), 10000);
+// REMAININGS FUNCTIONALITIES WILL BE HERE
 
 // will run after each 1 hour
 // distributeRewards()
 // 1800000 / 30 min
-// setInterval(() => distributeRewards(), 1800000) // 60 min
+setInterval(() => distributeRewards(), 10000)
 
-// ------------------------- REMOVAL ----------------------------------
-
-// removing pages each 5 secs
-// this function duration should be less than indexingUser() function below
-// setInterval(() => removingPages(), 5000)
-
-// setInterval(() => {
-// 	removingSkippingAddresses()
-// }, TWENTY_FOUR + 15000)
+// ------------------------- CLEANUP ----------------------------------
 
 // REMOVING LAST 24 HOURS DISTRIBUTIONS
 // this can be executed if all of users has been rewarded in 1 day ( in 1 hour each waves )
-// setInterval(() => removeLast24Distributions(), FIFTEEN_MINUTES)	
+// setInterval(() => removeLast24Distributions(), 15000)	
 
-// const filteringDistributedRewards = async() => {
-// 	const eligUsers = await EligibleUsers.find({});
-// 	const spicesDistributed = await SpiceDistributeTest.find({})
-
-// 	for (const user of eligUsers) {
-// 		  const matchesAddress = spicesDistributed.filter(receiver => receiver.toAddress == user.toAddress);
-// 		 console.log(matchesAddress)
-// 	}	
-// }
  
-app.listen(PORT, () => console.log(`server is running on port ${PORT}`))
-
+// app.listen(PORT, () => console.log(`server is running on port ${PORT}`))

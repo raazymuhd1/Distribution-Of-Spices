@@ -2,7 +2,7 @@ import { eventContract, goBobInstance, explorerBob } from "../constants/index.js
 import EventCoreAbi from "../contracts/EventAbi.json" assert { type: "json" };
 import { ethers } from "ethers";
 import axios from "axios"
-import User from "../models/allUsers.model.js"
+import EligibleUsers from "../models/eligibleUsers.model.js"
 /**
  * @dev get contract
  * @returns eventCa - contract
@@ -42,7 +42,7 @@ export const _getTotalPoints = async() => {
 export async function _getTotalUsers() {
      const contract = await getContract()
     const totalUsers = await contract.getTotalUsers();
-    return totalUsers - 1;
+    return totalUsers;
 }
 
 // GET PROJECT TOTAL SPICES
@@ -59,8 +59,8 @@ export const isFusionRegistered = async(userWallet) => {
     try{
         const { data } = await axios.get(`${goBobInstance}/user/${userWallet}`)
         const isUserExists = data?.ok;
-        if(isUserExists == false) {
-            await User.deleteOne({ user: userWallet })
+        if(!isUserExists) {
+            await EligibleUsers.deleteOne({ toAddress: userWallet })
             console.log("deleted")
             return false;
         }
@@ -69,27 +69,5 @@ export const isFusionRegistered = async(userWallet) => {
     } catch(err) {
         console.log(err)
         return err
-    }
-}
-
-export const getTotalUsersFromDb = async() => {
-    try {
-        const users = await User.find({})
-        return users;
-    } catch(err) {
-        console.log(err)
-    }
-}
-
-export const totalUserIsEqual = async() => {
-    try {
-        const allUsersOnDb = await User.find({})
-        const allUsersOnContracts = await _getTotalUsers();
-        const isEqual = allUsersOnDb.length === Number(allUsersOnContracts.toString());
-        console.log(allUsersOnDb.length)
-        console.log("allUsersFromContract", Number(allUsersOnContracts.toString()))
-        return isEqual;
-    } catch(err) {
-        console.log(err)
     }
 }
