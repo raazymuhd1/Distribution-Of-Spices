@@ -64,9 +64,7 @@ export async function tickingUserRewardsAndPoints() {
  * - check if eligible users has been receiving the rewards today or not, if they do then skip to another eligible users (and so on)
  * - after 24 hours, Clears out all the distributions data for yesterday
  */
-// I COULD RUN THIS FUNCTION OUTSIDES of distributesRewards function
-// filter out all users that has been rewarded, returning only filter that has been receiving rewards.
-// then excluded all of them  
+
 export const checkPastDistributions = async(user) => {
     try {
         const receivers = await RewardReceivers.find({});
@@ -76,7 +74,7 @@ export const checkPastDistributions = async(user) => {
 
             if(receiverExists) {
                 const removedReceiverRewarded = await RewardReceivers.deleteOne({ toAddress: receiver.toAddress })
-                console.log(`total users that has been receiving rewards today and got removed from receiver lists`, removedReceiverRewarded)
+                console.log(`total users that has been receiving rewards today and got removed from receiver lists`)
                 return;
             }
 
@@ -116,7 +114,7 @@ export async function saveDistributionsData(transferData) {
 
 
 /**
- * @dev check, calculate and distribute rewards to user that have RP
+ * @dev distribute rewards to user that have RP/points
  */
 export const distributeRewards = async() => {
          try {
