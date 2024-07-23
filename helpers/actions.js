@@ -98,8 +98,7 @@ export async function saveDistributionsData(transferData) {
             console.log(`total user has been rewarded ${transferData.length}`)
             console.log(`inserted users ${insertDistributionsData}`)
 
-            const deletedReceivers = await RewardReceivers.deleteMany({ points: { $gte: 0 } })
-            console.log(deletedReceivers)
+            deletingReceiversOnEachDistributions();
             return
         }
 
@@ -111,6 +110,11 @@ export async function saveDistributionsData(transferData) {
     }
 }
 
+
+export const deletingReceiversOnEachDistributions = async() => {
+    const deletedReceivers = await RewardReceivers.deleteMany({ points: { $gte: 0 } })
+    console.log(deletedReceivers)
+}
 
 
 /**

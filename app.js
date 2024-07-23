@@ -5,7 +5,7 @@ import cors from "cors"
 // rate limiter
 import { rateLimit } from 'express-rate-limit'
 import { connectDb } from "./helpers/dbConnect.js";
-import { distributeRewards, tickingUserRewardsAndPoints, checkPastDistributions } from "./helpers/actions.js";
+import { distributeRewards, tickingUserRewardsAndPoints, checkPastDistributions, deletingReceiversOnEachDistributions } from "./helpers/actions.js";
 import { getBotSpices, checkingUserSpices, _getTotalPoints, _getTotalUsers } from "./helpers/infos.js";
 import { removeLast24Distributions } from "./helpers/cleanup.js"
 import { FIFTEEN_MINUTES, TWENTY_FOUR, ONE_HOUR } from "./constants/index.js"
@@ -58,7 +58,9 @@ _getTotalUsers();
 
 // ------------------------- CLEANUP ----------------------------------
 
-// REMOVING LAST 24 HOURS DISTRIBUTIONS
+// deletingReceiversOnEachDistributions()
+
+// REMOVING LAST 24 + 5 min HOURS DISTRIBUTIONS
 // this can be executed if all of users has been rewarded in 1 day ( in 1 hour each waves )
 // setInterval(() => removeLast24Distributions(), 5000)	
 
