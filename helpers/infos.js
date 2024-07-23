@@ -2,6 +2,7 @@ import { eventContract, goBobInstance, explorerBob } from "../constants/index.js
 import EventCoreAbi from "../contracts/EventAbi.json" assert { type: "json" };
 import { ethers } from "ethers";
 import axios from "axios"
+import fetch from "node-fetch"
 import EligibleUsers from "../models/eligibleUsers.model.js"
 /**
  * @dev get contract
@@ -34,7 +35,7 @@ export const getUserDetails = async(user) => {
 export const _getTotalPoints = async() => {
     const contract = await getContract()
     const totalPoints = await contract.getTotalPoints();
-     
+     console.log(`total points is ${totalPoints.toString()}`)
     return totalPoints
 }
 
@@ -42,6 +43,7 @@ export const _getTotalPoints = async() => {
 export async function _getTotalUsers() {
      const contract = await getContract()
     const totalUsers = await contract.getTotalUsers();
+    console.log(`total users from contract is ${totalUsers.toString()}`)
     return totalUsers;
 }
 
@@ -51,6 +53,7 @@ export const getBotSpices = async() => {
     const filteredResults = data?.partners.filter(partner => partner.name == "BOTS OF BITCOIN ")
     const totalSpices = filteredResults[0]?.total_points;
 
+    console.log(`total spices ${totalSpices.toString()}`)
      return totalSpices;
 }
 
@@ -69,5 +72,20 @@ export const isFusionRegistered = async(userWallet) => {
     } catch(err) {
         console.log(err)
         return err
+    }
+}
+
+export const checkingUserSpices = async() => {
+    try {
+        const res = await fetch(`${goBobInstance}/userpoints?evm_address=0x61810Ec87b1d8c0c794Dfe5c5f4920f270fDA5FF`, {
+            method: "GET",
+            headers: {
+                'x-api-key': process.env.BOB_API_KEY
+            }
+        })
+        const data = await res.json()
+        console.log(data)
+    }catch(err) {
+        console.log(err)
     }
 }
